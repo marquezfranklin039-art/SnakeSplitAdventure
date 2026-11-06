@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snake Split Adventure</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #0d0f17; color: #fff; font-family: sans-serif; overflow: hidden; }
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script>
+        // SNAKE SPLIT ADVENTURE - GAME ENGINE CONFIGURATION
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            physics: { default: 'arcade', arcade: { debug: false } },
+            scene: { preload: preload, create: create, update: update }
+        };
+
+        const game = new Phaser.Game(config);
+
+        let snake1, snake2, food, specialFruit;
+        let cursors, controlsLeft, controlsRight;
+        let isSplit = false;
+        let currentDifficulty = 'Experto';
+        let currentLevel = 1;
+
+        function preload() {}
+        function create() {}
+        function update() {}
+    </script>
+</body>
+</html>
