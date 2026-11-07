@@ -1,3 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snake Split Adventure</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #0d0f17; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); max-width: 100%; max-height: 100%; }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <script>
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            parent: 'game-container',
+            scene: { preload: preload, create: create, update: update }
+        };
+
+        let snakeSegments = [];
+        let food;
+        let direction = 'RIGHT';
+        let moveTime = 0;
+        const gridSize = 30; // Bloques más grandes y fáciles de ver
+
+        const game = new Phaser.Game(config);
+
+        function preload() {}
+
+        function create() {
+            this.add.text(400, 35, 'SNAKE SPLIT ADVENTURE', { fontSize: '26px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
+
+            // Crear la serpiente con bloques separados y cabeza destacada
+            snakeSegments = [];
+            for (let i = 0; i < 4; i++) {
+                let color = (i === 0) ? 0x00ffcc : 0x00f0ff;
+                let rect = this.add.rectangle(300 - (i * gridSize), 300, gridSize - 4, gridSize - 4, color);
+                snakeSegments.push({ rect: rect, x: 300 - (i * gridSize), y: 300 });
+            }
+
+            // Comida rosada visible
+            food = this.add.rectangle(500, 300, gridSize - 4, gridSize - 4, 0xff00ff);
+
+            // Controles táctiles: toca la mitad izquierda o derecha de la pantalla para girar
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.x < 400) {
+                    if (direction === 'RIGHT') direction = 'UP';
+                    else if (direction === 'UP') direction = 'LEFT';
+                    else if (direction === 'LEFT') direction = 'DOWN';
+                    else if (direction === 'DOWN') direction = 'RIGHT';
+                } else {
+                    if (direction === 'RIGHT') direction = 'DOWN';
+                    else if (direction === 'DOWN') direction = 'LEFT';
+                    else if (direction === 'LEFT') direction = 'UP';
+                    else if (direction === 'UP') direction = 'RIGHT';
+                }
+            });
+        }
+
+        function update(time) {
+            if (time < moveTime) return;
+            moveTime = time + 200; // Velocidad estable
+
+            let headX = snakeSegments[0].x;
+            let headY = snakeSegments[0].y;
+
+            if (direction === 'RIGHT') headX += gridSize;
+            else if (direction === 'LEFT') headX -= gridSize;
+            else if (direction === 'UP') headY -= gridSize;
+            else if (direction === 'DOWN') headY += gridSize;
+
+            // Mantener la serpiente dentro de los límites visibles de la pantalla
+            if (headX >= 800) headX = 0;
+            if (headX < 0) headX = 770;
+            if (headY >= 600) headY = 90;
+            if (headY < 90) headY = 570;
+
+            // Mover el cuerpo ordenadamente detrás de la cabeza
+            for (let i = snakeSegments.length - 1; i > 0; i--) {
+                snakeSegments[i].x = snakeSegments[i - 1].x;
+                snakeSegments[i].y = snakeSegments[i - 1].y;
+                snakeSegments[i].rect.setPosition(snakeSegments[i].x, snakeSegments[i].y);
+            }
+
+            // Actualizar la posición de la cabeza
+            snakeSegments[0].x = headX;
+            snakeSegments[0].y = headY;
+            snakeSegments[0].rect.setPosition(headX, headY);
+        }
+    </script>
+</body>
+</html>
 
 <!DOCTYPE html>
 <html lang="es">
@@ -20,43 +117,41 @@
             width: 800,
             height: 600,
             parent: 'game-container',
-            physics: { default: 'arcade', arcade: { debug: false } },
             scene: { preload: preload, create: create, update: update }
         };
 
-        let snake = [];
+        let snakeSegments = [];
         let food;
         let direction = 'RIGHT';
         let moveTime = 0;
-        const gridsize = 20;
+        const gridSize = 30; // Bloques más grandes y fáciles de ver
 
         const game = new Phaser.Game(config);
 
         function preload() {}
 
         function create() {
-            this.add.text(400, 30, 'SNAKE SPLIT ADVENTURE', { fontSize: '24px', fill: '#00f0ff' }).setOrigin(0.5);
-            
-            // Crear la serpiente con posiciones bien separadas
-            snake = [];
-            for (let i = 0; i < 5; i++) {
-                let part = this.add.rectangle(400 - (i * gridsize), 300, gridsize - 2, gridsize - 2, 0x00f0ff);
-                snake.push(part);
+            this.add.text(400, 35, 'SNAKE SPLIT ADVENTURE', { fontSize: '26px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
+
+            // Crear la serpiente con bloques separados y cabeza destacada
+            snakeSegments = [];
+            for (let i = 0; i < 4; i++) {
+                let color = (i === 0) ? 0x00ffcc : 0x00f0ff;
+                let rect = this.add.rectangle(300 - (i * gridSize), 300, gridSize - 4, gridSize - 4, color);
+                snakeSegments.push({ rect: rect, x: 300 - (i * gridSize), y: 300 });
             }
 
-            // Comida
-            food = this.add.rectangle(600, 300, gridsize - 2, gridsize - 2, 0xff00ff);
+            // Comida rosada visible
+            food = this.add.rectangle(500, 300, gridSize - 4, gridSize - 4, 0xff00ff);
 
-            // Controles táctiles sencillos dividiendo la pantalla en dos (izquierda / derecha)
+            // Controles táctiles: toca la mitad izquierda o derecha de la pantalla para girar
             this.input.on('pointerdown', (pointer) => {
                 if (pointer.x < 400) {
-                    // Girar sentido antihorario o cambiar dirección
                     if (direction === 'RIGHT') direction = 'UP';
                     else if (direction === 'UP') direction = 'LEFT';
                     else if (direction === 'LEFT') direction = 'DOWN';
                     else if (direction === 'DOWN') direction = 'RIGHT';
                 } else {
-                    // Girar sentido horario
                     if (direction === 'RIGHT') direction = 'DOWN';
                     else if (direction === 'DOWN') direction = 'LEFT';
                     else if (direction === 'LEFT') direction = 'UP';
@@ -67,28 +162,33 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 150; // Velocidad de movimiento
+            moveTime = time + 200; // Velocidad estable
 
-            // Calcular nueva posición de la cabeza
-            let head = snake[0];
-            let x = head.x;
-            let y = head.y;
+            let headX = snakeSegments[0].x;
+            let headY = snakeSegments[0].y;
 
-            if (direction === 'RIGHT') x += gridsize;
-            else if (direction === 'LEFT') x -= gridsize;
-            else if (direction === 'UP') y -= gridsize;
-            else if (direction === 'DOWN') y += gridsize;
+            if (direction === 'RIGHT') headX += gridSize;
+            else if (direction === 'LEFT') headX -= gridSize;
+            else if (direction === 'UP') headY -= gridSize;
+            else if (direction === 'DOWN') headY += gridSize;
 
-            // Rebotar o reaparecer en los bordes
-            if (x >= 800) x = 0;
-            if (x < 0) x = 780;
-            if (y >= 600) y = 60; // Deja espacio para el título
-            if (y < 60) y = 580;
+            // Mantener la serpiente dentro de los límites visibles de la pantalla
+            if (headX >= 800) headX = 0;
+            if (headX < 0) headX = 770;
+            if (headY >= 600) headY = 90;
+            if (headY < 90) headY = 570;
 
-            // Mover el cuerpo de la serpiente
-            let tail = snake.pop();
-            tail.setPosition(x, y);
-            snake.unshift(tail);
+            // Mover el cuerpo ordenadamente detrás de la cabeza
+            for (let i = snakeSegments.length - 1; i > 0; i--) {
+                snakeSegments[i].x = snakeSegments[i - 1].x;
+                snakeSegments[i].y = snakeSegments[i - 1].y;
+                snakeSegments[i].rect.setPosition(snakeSegments[i].x, snakeSegments[i].y);
+            }
+
+            // Actualizar la posición de la cabeza
+            snakeSegments[0].x = headX;
+            snakeSegments[0].y = headY;
+            snakeSegments[0].rect.setPosition(headX, headY);
         }
     </script>
 </body>
