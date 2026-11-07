@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Pro Edition</title>
+    <title>Snake Split Adventure - Fixed</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #080910; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; }
+        body { margin: 0; padding: 0; background-color: #080910; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; }
         #game-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 30px rgba(0, 240, 255, 0.4); width: 100% !important; height: auto !important; max-width: 800px; max-height: 600px; border-radius: 8px; }
+        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); width: 100% !important; height: auto !important; max-width: 800px; max-height: 600px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -28,7 +28,7 @@
         let nextDirection = 'RIGHT';
         let moveTime = 0;
         let score = 0;
-        const size = 30;
+        const size = 25;
         let sceneRef;
 
         const game = new Phaser.Game(config);
@@ -38,6 +38,20 @@
         function create() {
             sceneRef = this;
             initGame(this);
+
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.x < window.innerWidth / 2) {
+                    if (direction === 'RIGHT') nextDirection = 'UP';
+                    else if (direction === 'UP') nextDirection = 'LEFT';
+                    else if (direction === 'LEFT') nextDirection = 'DOWN';
+                    else if (direction === 'DOWN') nextDirection = 'RIGHT';
+                } else {
+                    if (direction === 'RIGHT') nextDirection = 'DOWN';
+                    else if (direction === 'DOWN') nextDirection = 'LEFT';
+                    else if (direction === 'LEFT') nextDirection = 'UP';
+                    else if (direction === 'UP') nextDirection = 'RIGHT';
+                }
+            });
         }
 
         function initGame(scene) {
@@ -46,7 +60,6 @@
             nextDirection = 'RIGHT';
 
             if (scoreText) scoreText.destroy();
-            
             scene.add.text(400, 25, 'SNAKE SPLIT ADVENTURE', { fontSize: '22px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
             scoreText = scene.add.text(400, 55, 'PUNTOS: 0', { fontSize: '20px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
 
@@ -57,33 +70,17 @@
             snake = [];
             for (let i = 0; i < 5; i++) {
                 let color = (i === 0) ? 0x00ffcc : 0x00bfff;
-                let circle = scene.add.circle(300 - (i * size), 320, size / 2 - 2, color);
-                snake.push({ obj: circle, x: 300 - (i * size), y: 320 });
+                let circle = scene.add.circle(300 - (i * size), 300, size / 2, color);
+                snake.push({ obj: circle, x: 300 - (i * size), y: 300 });
             }
 
             if (food) food.destroy();
-            food = scene.add.circle(540, 320, size / 2 - 2, 0xff007f);
-
-            if (!scene.input.listeners('pointerdown').length) {
-                scene.input.on('pointerdown', (pointer) => {
-                    if (pointer.x < window.innerWidth / 2) {
-                        if (direction === 'RIGHT') nextDirection = 'UP';
-                        else if (direction === 'UP') nextDirection = 'LEFT';
-                        else if (direction === 'LEFT') nextDirection = 'DOWN';
-                        else if (direction === 'DOWN') nextDirection = 'RIGHT';
-                    } else {
-                        if (direction === 'RIGHT') nextDirection = 'DOWN';
-                        else if (direction === 'DOWN') nextDirection = 'LEFT';
-                        else if (direction === 'LEFT') nextDirection = 'UP';
-                        else if (direction === 'UP') nextDirection = 'RIGHT';
-                    }
-                });
-            }
+            food = scene.add.circle(500, 300, size / 2, 0xff007f);
         }
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 150;
+            moveTime = time + 140;
 
             direction = nextDirection;
 
@@ -95,20 +92,23 @@
             else if (direction === 'UP') hy -= size;
             else if (direction === 'DOWN') hy += size;
 
-            if (hx >= 800) hx = 0;
-            if (hx < 0) hx = 780;
-            if (hy >= 600) hy = 90;
-            if (hy < 90) hy = 570;
+            // Teletransporte limpio en los bordes para que NUNCA se esconda la serpiente
+            if (hx >= 780) hx = 20;
+            else if (hx <= 10) hx = 770;
+            if (hy >= 580) hy = 90;
+            else if (hy <= 80) hy = 570;
 
-            // Verificar si la cabeza choca con su propio cuerpo (Game Over)
-            for (let i = 1; i < snake.length; i++) {
-                if (hx === snake[i].x && hy === snake[i].y) {
+            // Detectar choque con el propio cuerpo
+            for (let i = 2; i < snake.length; i++) {
+                if (Math.abs(hx - snake[i].x) < 10 && Math.abs(hy - snake[i].y) < 10) {
                     initGame(sceneRef);
                     return;
                 }
             }
 
-            let hitFood = (hx === food.x && hy === food.y);
+            // Detección de comida por rango (Come sí o sí)
+            let dist = Phaser.Math.Distance.Between(hx, hy, food.x, food.y);
+            let hitFood = (dist < size);
             let tail = snake[snake.length - 1];
 
             for (let i = snake.length - 1; i > 0; i--) {
@@ -125,11 +125,11 @@
                 score += 10;
                 scoreText.setText('PUNTOS: ' + score);
 
-                let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2 - 2, 0x00bfff);
+                let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2, 0x00bfff);
                 snake.push({ obj: newCircle, x: tail.x, y: tail.y });
 
-                let rx = Math.floor(Math.random() * 24) * size;
-                let ry = Math.floor(Math.random() * 15 + 3) * size;
+                let rx = Math.floor(Math.random() * 26 + 2) * size;
+                let ry = Math.floor(Math.random() * 15 + 4) * size;
                 food.setPosition(rx, ry);
             }
         }
