@@ -2,12 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snake Split Adventure - Pro Edition</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #0d0f17; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); max-width: 100%; max-height: 100%; }
+        body { margin: 0; padding: 0; background-color: #080910; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; }
+        #game-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 30px rgba(0, 240, 255, 0.4); width: 100% !important; height: auto !important; max-width: 800px; max-height: 600px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -22,11 +22,13 @@
             scene: { preload: preload, create: create, update: update }
         };
 
-        let snakeSegments = [];
-        let food;
+        let snake = [];
+        let food, scoreText;
         let direction = 'RIGHT';
+        let nextDirection = 'RIGHT';
         let moveTime = 0;
-        const gridSize = 25;
+        let score = 0;
+        const size = 28;
         let sceneRef;
 
         const game = new Phaser.Game(config);
@@ -35,75 +37,90 @@
 
         function create() {
             sceneRef = this;
-            this.add.text(400, 35, 'SNAKE SPLIT ADVENTURE', { fontSize: '26px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
+            score = 0;
 
-            snakeSegments = [];
-            // Crear la serpiente con círculos suaves
+            // Título y Marcador moderno
+            this.add.text(400, 25, 'SNAKE SPLIT ADVENTURE', { fontSize: '22px', fill: '#00f0ff', fontStyle: 'bold', fontqin: 'monospace' }).setOrigin(0.5);
+            scoreText = this.add.text(400, 55, 'PUNTOS: 0', { fontSize: '20px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
+
+            // Crear serpiente inicial
+            snake = [];
             for (let i = 0; i < 5; i++) {
                 let color = (i === 0) ? 0x00ffcc : 0x00bfff;
-                let circle = this.add.circle(300 - (i * gridSize), 300, gridSize / 2 - 2, color);
-                snakeSegments.push({ obj: circle, x: 300 - (i * gridSize), y: 300 });
+                let circle = this.add.circle(300 - (i * size), 320, size / 2 - 2, color);
+                snake.push({ obj: circle, x: 300 - (i * size), y: 320 });
             }
 
-            // Comida redonda y brillante
-            food = this.add.circle(500, 300, gridSize / 2 - 2, 0xff00ff);
+            // Comida inicial
+            food = this.add.circle(500, 320, size / 2 - 2, 0xff007f);
 
-            // Controles táctiles
+            // Controles táctiles optimizados por zonas de la pantalla
             this.input.on('pointerdown', (pointer) => {
-                if (pointer.x < 400) {
-                    if (direction === 'RIGHT') direction = 'UP';
-                    else if (direction === 'UP') direction = 'LEFT';
-                    else if (direction === 'LEFT') direction = 'DOWN';
-                    else if (direction === 'DOWN') direction = 'RIGHT';
+                if (pointer.x < window.innerWidth / 2) {
+                    // Giro a la izquierda
+                    if (direction === 'RIGHT') nextDirection = 'UP';
+                    else if (direction === 'UP') nextDirection = 'LEFT';
+                    else if (direction === 'LEFT') nextDirection = 'DOWN';
+                    else if (direction === 'DOWN') nextDirection = 'RIGHT';
                 } else {
-                    if (direction === 'RIGHT') direction = 'DOWN';
-                    else if (direction === 'DOWN') direction = 'LEFT';
-                    else if (direction === 'LEFT') direction = 'UP';
-                    else if (direction === 'UP') direction = 'RIGHT';
+                    // Giro a la derecha
+                    if (direction === 'RIGHT') nextDirection = 'DOWN';
+                    else if (direction === 'DOWN') nextDirection = 'LEFT';
+                    else if (direction === 'LEFT') nextDirection = 'UP';
+                    else if (direction === 'UP') nextDirection = 'RIGHT';
                 }
             });
         }
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 160;
+            moveTime = time + 150; // Velocidad fluida
 
-            let headX = snakeSegments[0].x;
-            let headY = snakeSegments[0].y;
+            direction = nextDirection;
 
-            if (direction === 'RIGHT') headX += gridSize;
-            else if (direction === 'LEFT') headX -= gridSize;
-            else if (direction === 'UP') headY -= gridSize;
-            else if (direction === 'DOWN') headY += gridSize;
+            let hx = snake[0].x;
+            let hy = snake[0].y;
 
-            if (headX >= 800) headX = 0;
-            if (headX < 0) headX = 775;
-            if (headY >= 600) headY = 90;
-            if (headY < 90) headY = 575;
+            if (direction === 'RIGHT') hx += size;
+            else if (direction === 'LEFT') hx -= size;
+            else if (direction === 'UP') hy -= size;
+            else if (direction === 'DOWN') hy += size;
 
-            let ateFood = (Math.abs(headX - food.x) < 5 && Math.abs(headY - food.y) < 5);
-            let tail = snakeSegments[snakeSegments.length - 1];
+            // Rebote o atravesar bordes de forma limpia
+            if (hx >= 800) hx = 0;
+            if (hx < 0) hx = 784;
+            if (hy >= 600) hy = 80;
+            if (hy < 80) hy = 588;
 
-            for (let i = snakeSegments.length - 1; i > 0; i--) {
-                snakeSegments[i].x = snakeSegments[i - 1].x;
-                snakeSegments[i].y = snakeSegments[i - 1].y;
-                snakeSegments[i].obj.setPosition(snakeSegments[i].x, snakeSegments[i].y);
+            let hitFood = (Phaser.Math.Distance.Between(hx, hy, food.x, food.y) < 15);
+            let tail = snake[snake.length - 1];
+
+            // Mover cuerpo
+            for (let i = snake.length - 1; i > 0; i--) {
+                snake[i].x = snake[i - 1].x;
+                snake[i].y = snake[i - 1].y;
+                snake[i].obj.setPosition(snake[i].x, snake[i].y);
             }
 
-            snakeSegments[0].x = headX;
-            snakeSegments[0].y = headY;
-            snakeSegments[0].obj.setPosition(headX, headY);
+            // Mover cabeza
+            snake[0].x = hx;
+            snake[0].y = hy;
+            snake[0].obj.setPosition(hx, hy);
 
-            if (ateFood) {
-                let newCircle = sceneRef.add.circle(tail.x, tail.y, gridSize / 2 - 2, 0x00bfff);
-                snakeSegments.push({ obj: newCircle, x: tail.x, y: tail.y });
+            // Si come la comida
+            if (hitFood) {
+                score += 10;
+                scoreText.setText('PUNTOS: ' + score);
 
-                let rx = Math.floor(Math.random() * 28) * gridSize + 20;
-                let ry = Math.floor(Math.random() * 16 + 4) * gridSize;
+                let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2 - 2, 0x00bfff);
+                snake.push({ obj: newCircle, x: tail.x, y: tail.y });
+
+                // Reubicar comida al azar dentro de la zona jugable
+                let rx = Math.floor(Math.random() * 25) * size + 20;
+                let ry = Math.floor(Math.random() * 15 + 4) * size;
                 food.setPosition(rx, ry);
             }
         }
     </script>
 </body>
 </html>
-
