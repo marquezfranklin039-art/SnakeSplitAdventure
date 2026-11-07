@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Perfect Borders</title>
+    <title>Snake Split Adventure - Fullscreen</title>
     <style>
-        body { margin: 0; padding: 0; background-color: #080910; color: #fff; font-family: sans-serif; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; }
-        #game-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-        canvas { border: 2px solid #00f0ff; box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); width: 100% !important; height: auto !important; max-width: 800px; max-height: 600px; border-radius: 8px; }
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; background-color: #080910; color: #fff; font-family: sans-serif; overflow: hidden; width: 100%; height: 100%; }
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { display: block; border: 2px solid #00f0ff; box-shadow: 0 0 15px rgba(0, 240, 255, 0.4); }
     </style>
 </head>
 <body>
     <div id="game-container"></div>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script>
+        // Tamaño dinámico según la pantalla del teléfono
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        const size = 25; // Tamaño de cada segmento/grilla
+
         const config = {
             type: Phaser.AUTO,
-            width: 800,
-            height: 600,
+            width: screenWidth,
+            height: screenHeight,
             parent: 'game-container',
             scene: { preload: preload, create: create, update: update }
         };
@@ -29,7 +35,6 @@
         let nextDirection = 'RIGHT';
         let moveTime = 0;
         let score = 0;
-        const size = 30; // Tamaño de grilla exacto
         let sceneRef;
 
         const game = new Phaser.Game(config);
@@ -40,8 +45,9 @@
             sceneRef = this;
             initGame(this);
 
+            // Controles por toque: toque izquierdo para girar izquierda, toque derecho para girar derecha
             this.input.on('pointerdown', (pointer) => {
-                if (pointer.x < window.innerWidth / 2) {
+                if (pointer.x < screenWidth / 2) {
                     if (direction === 'RIGHT') nextDirection = 'UP';
                     else if (direction === 'UP') nextDirection = 'LEFT';
                     else if (direction === 'LEFT') nextDirection = 'DOWN';
@@ -61,25 +67,46 @@
             nextDirection = 'RIGHT';
 
             if (scoreText) scoreText.destroy();
-            scene.add.text(400, 25, 'SNAKE SPLIT ADVENTURE', { fontSize: '22px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
-            scoreText = scene.add.text(400, 55, 'PUNTOS: 0', { fontSize: '20px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
+            scene.add.text(screenWidth / 2, 20, 'SNAKE SPLIT ADVENTURE', { fontSize: '18px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
+            scoreText = scene.add.text(screenWidth / 2, 45, 'PUNTOS: 0', { fontSize: '16px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
 
             if (snake.length > 0) snake.forEach(s => s.obj.destroy());
             splitSnakes.forEach(sGroup => sGroup.body.forEach(s => s.obj.destroy()));
             splitSnakes = [];
 
+            let startX = Math.floor((screenWidth / 2) / size) * size;
+            let startY = Math.floor((screenHeight / 2) / size) * size;
+
             snake = [];
             for (let i = 0; i < 5; i++) {
                 let color = (i === 0) ? 0x00ffcc : 0x00bfff;
-                let circle = scene.add.circle(300 - (i * size), 300, size / 2 - 2, color);
-                snake.push({ obj: circle, x: 300 - (i * size), y: 300 });
+                let circle = scene.add.circle(startX - (i * size), startY, size / 2 - 1, color);
+                snake.push({ obj: circle, x: startX - (i * size), y: startY });
             }
 
             if (food) food.destroy();
-            food = scene.add.circle(540, 300, size / 2 - 2, 0xff007f);
+            food = scene.add.circle(0, 0, size / 2 - 1, 0xff007f);
+            spawnFood();
 
             if (splitItem) splitItem.destroy();
-            splitItem = scene.add.circle(420, 200, size / 2 - 2, 0xffcc00);
+            splitItem = scene.add.circle(0, 0, size / 2 - 1, 0xffcc00);
+            spawnSplitItem();
+        }
+
+        function spawnFood() {
+            let cols = Math.floor((screenWidth - 40) / size);
+            let rows = Math.floor((screenHeight - 100) / size);
+            let rx = (Math.floor(Math.random() * cols) + 1) * size;
+            let ry = (Math.floor(Math.random() * rows) + 3) * size;
+            food.setPosition(rx, ry);
+        }
+
+        function spawnSplitItem() {
+            let cols = Math.floor((screenWidth - 40) / size);
+            let rows = Math.floor((screenHeight - 100) / size);
+            let rx = (Math.floor(Math.random() * cols) + 1) * size;
+            let ry = (Math.floor(Math.random() * rows) + 3) * size;
+            splitItem.setPosition(rx, ry);
         }
 
         function doSplit() {
@@ -99,7 +126,7 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 140;
+            moveTime = time + 130;
 
             direction = nextDirection;
 
@@ -111,13 +138,13 @@
             else if (direction === 'UP') hy -= size;
             else if (direction === 'DOWN') hy += size;
 
-            // Bordes horizontales y verticales exactos alineados a la grilla
-            if (hx >= 780) hx = 0;
-            else if (hx < 0) hx = 780;
-            if (hy >= 570) hy = 90;
-            else if (hy < 90) hy = 570;
+            // Ajuste exacto a los bordes de la pantalla del celular
+            if (hx >= screenWidth) hx = 0;
+            else if (hx < 0) hx = Math.floor(screenWidth / size) * size - size;
+            if (hy >= screenHeight) hy = 70;
+            else if (hy < 70) hy = Math.floor(screenHeight / size) * size - size;
 
-            // Choque consigo misma
+            // Choque con su propio cuerpo
             for (let i = 2; i < snake.length; i++) {
                 if (hx === snake[i].x && hy === snake[i].y) {
                     initGame(sceneRef);
@@ -126,29 +153,21 @@
             }
 
             // Comer comida normal
-            if (hx === food.x && hy === food.y) {
+            if (Math.abs(hx - food.x) < size / 2 && Math.abs(hy - food.y) < size / 2) {
                 score += 10;
                 scoreText.setText('PUNTOS: ' + score);
                 let tail = snake[snake.length - 1];
-                let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2 - 2, 0x00bfff);
+                let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2 - 1, 0x00bfff);
                 snake.push({ obj: newCircle, x: tail.x, y: tail.y });
-
-                food.setPosition(
-                    Math.floor(Math.random() * 25) * size,
-                    Math.floor(Math.random() * 15 + 3) * size
-                );
+                spawnFood();
             }
 
-            // Comer ítem Split (Amarillo)
-            if (splitItem && hx === splitItem.x && hy === splitItem.y) {
+            // Comer ítem de división (Split)
+            if (splitItem && Math.abs(hx - splitItem.x) < size / 2 && Math.abs(hy - splitItem.y) < size / 2) {
                 score += 25;
                 scoreText.setText('PUNTOS: ' + score);
                 doSplit();
-
-                splitItem.setPosition(
-                    Math.floor(Math.random() * 25) * size,
-                    Math.floor(Math.random() * 15 + 3) * size
-                );
+                spawnSplitItem();
             }
 
             // Mover cuerpo principal
@@ -161,7 +180,7 @@
             snake[0].y = hy;
             snake[0].obj.setPosition(hx, hy);
 
-            // Mover serpientes secundarias divididas
+            // Mover serpientes secundarias
             splitSnakes.forEach(sGroup => {
                 let sBody = sGroup.body;
                 let sHeadX = sBody[0].x;
@@ -172,10 +191,10 @@
                 else if (sGroup.dir === 'RIGHT') sHeadX += size;
                 else if (sGroup.dir === 'LEFT') sHeadX -= size;
 
-                if (sHeadX >= 780) sHeadX = 0;
-                else if (sHeadX < 0) sHeadX = 780;
-                if (sHeadY >= 570) sHeadY = 90;
-                else if (sHeadY < 90) sHeadY = 570;
+                if (sHeadX >= screenWidth) sHeadX = 0;
+                else if (sHeadX < 0) sHeadX = Math.floor(screenWidth / size) * size - size;
+                if (sHeadY >= screenHeight) sHeadY = 70;
+                else if (sHeadY < 70) sHeadY = Math.floor(screenHeight / size) * size - size;
 
                 for (let i = sBody.length - 1; i > 0; i--) {
                     sBody[i].x = sBody[i - 1].x;
