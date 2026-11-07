@@ -28,7 +28,7 @@
         let nextDirection = 'RIGHT';
         let moveTime = 0;
         let score = 0;
-        const size = 28;
+        const size = 30; // Tamaño exacto de la grilla
         let sceneRef;
 
         const game = new Phaser.Game(config);
@@ -39,11 +39,9 @@
             sceneRef = this;
             score = 0;
 
-            // Título y Marcador moderno
-            this.add.text(400, 25, 'SNAKE SPLIT ADVENTURE', { fontSize: '22px', fill: '#00f0ff', fontStyle: 'bold', fontqin: 'monospace' }).setOrigin(0.5);
+            this.add.text(400, 25, 'SNAKE SPLIT ADVENTURE', { fontSize: '22px', fill: '#00f0ff', fontStyle: 'bold' }).setOrigin(0.5);
             scoreText = this.add.text(400, 55, 'PUNTOS: 0', { fontSize: '20px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
 
-            // Crear serpiente inicial
             snake = [];
             for (let i = 0; i < 5; i++) {
                 let color = (i === 0) ? 0x00ffcc : 0x00bfff;
@@ -51,19 +49,16 @@
                 snake.push({ obj: circle, x: 300 - (i * size), y: 320 });
             }
 
-            // Comida inicial
-            food = this.add.circle(500, 320, size / 2 - 2, 0xff007f);
+            // Comida alineada exactamente a la misma grilla
+            food = this.add.circle(540, 320, size / 2 - 2, 0xff007f);
 
-            // Controles táctiles optimizados por zonas de la pantalla
             this.input.on('pointerdown', (pointer) => {
                 if (pointer.x < window.innerWidth / 2) {
-                    // Giro a la izquierda
                     if (direction === 'RIGHT') nextDirection = 'UP';
                     else if (direction === 'UP') nextDirection = 'LEFT';
                     else if (direction === 'LEFT') nextDirection = 'DOWN';
                     else if (direction === 'DOWN') nextDirection = 'RIGHT';
                 } else {
-                    // Giro a la derecha
                     if (direction === 'RIGHT') nextDirection = 'DOWN';
                     else if (direction === 'DOWN') nextDirection = 'LEFT';
                     else if (direction === 'LEFT') nextDirection = 'UP';
@@ -74,7 +69,7 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 150; // Velocidad fluida
+            moveTime = time + 150;
 
             direction = nextDirection;
 
@@ -86,28 +81,25 @@
             else if (direction === 'UP') hy -= size;
             else if (direction === 'DOWN') hy += size;
 
-            // Rebote o atravesar bordes de forma limpia
             if (hx >= 800) hx = 0;
-            if (hx < 0) hx = 784;
-            if (hy >= 600) hy = 80;
-            if (hy < 80) hy = 588;
+            if (hx < 0) hx = 780;
+            if (hy >= 600) hy = 90;
+            if (hy < 90) hy = 570;
 
-            let hitFood = (Phaser.Math.Distance.Between(hx, hy, food.x, food.y) < 15);
+            // Colisión exacta por coordenadas de la grilla
+            let hitFood = (hx === food.x && hy === food.y);
             let tail = snake[snake.length - 1];
 
-            // Mover cuerpo
             for (let i = snake.length - 1; i > 0; i--) {
                 snake[i].x = snake[i - 1].x;
                 snake[i].y = snake[i - 1].y;
                 snake[i].obj.setPosition(snake[i].x, snake[i].y);
             }
 
-            // Mover cabeza
             snake[0].x = hx;
             snake[0].y = hy;
             snake[0].obj.setPosition(hx, hy);
 
-            // Si come la comida
             if (hitFood) {
                 score += 10;
                 scoreText.setText('PUNTOS: ' + score);
@@ -115,9 +107,9 @@
                 let newCircle = sceneRef.add.circle(tail.x, tail.y, size / 2 - 2, 0x00bfff);
                 snake.push({ obj: newCircle, x: tail.x, y: tail.y });
 
-                // Reubicar comida al azar dentro de la zona jugable
-                let rx = Math.floor(Math.random() * 25) * size + 20;
-                let ry = Math.floor(Math.random() * 15 + 4) * size;
+                // Reposicionar comida dentro de la zona de juego de forma exacta
+                let rx = Math.floor(Math.random() * 24) * size;
+                let ry = Math.floor(Math.random() * 15 + 3) * size;
                 food.setPosition(rx, ry);
             }
         }
