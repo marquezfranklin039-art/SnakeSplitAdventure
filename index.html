@@ -24,13 +24,53 @@
             scene: { preload: preload, create: create, update: update }
         };
 
+        let snake, food, cursors, direction = 'RIGHT', moveTime = 0;
+
         const game = new Phaser.Game(config);
 
         function preload() {}
+
         function create() {
-            this.add.text(400, 300, 'SNAKE SPLIT ADVENTURE', { fontSize: '32px', fill: '#00f0ff' }).setOrigin(0.5);
+            this.add.text(400, 30, 'SNAKE SPLIT ADVENTURE', { fontSize: '24px', fill: '#00f0ff' }).setOrigin(0.5);
+            
+            // Crear la serpiente como un grupo de cuadros
+            snake = [];
+            for (let i = 0; i < 5; i++) {
+                let part = this.add.rectangle(300 - (i * 20), 300, 18, 18, 0x00f0ff);
+                snake.push(part);
+            }
+
+            // Crear la comida
+            food = this.add.rectangle(500, 300, 18, 18, 0xff00ff);
+
+            // Controles táctiles / teclado básico
+            cursors = this.input.keyboard.createCursorKeys();
+            
+            // Controles sencillos en pantalla tocando los lados
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.x < 400 && direction !== 'RIGHT') direction = 'LEFT';
+                else if (pointer.x >= 400 && direction !== 'LEFT') direction = 'RIGHT';
+            });
         }
-        function update() {}
+
+        function update(time) {
+            if (time < moveTime) return;
+            moveTime = time + 120; // Velocidade del movimiento
+
+            // Movimiento del cuerpo
+            let headX = snake[0].x;
+            let headY = snake[0].y;
+
+            if (direction === 'RIGHT') headX += 20;
+            else if (direction === 'LEFT') headX -= 20;
+            else if (direction === 'UP') headY -= 20;
+            else if (direction === 'DOWN') headY += 20;
+
+            // Reacomodar segmentos
+            let tail = snake.pop();
+            tail.setPosition(headX, headY);
+            snake.unshift(tail);
+        }
     </script>
 </body>
 </html>
