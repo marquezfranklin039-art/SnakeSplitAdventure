@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Arena</title>
+    <title>Snake Split Arena - Joystick Pro</title>
     <style>
         * { box-sizing: border-box; touch-action: none; }
         body, html { 
@@ -23,7 +23,7 @@
         #score-val { color: #00ffcc; }
         #high-val { color: #ffcc00; }
 
-        /* CANCHA AGRANDADA */
+        /* CANCHA DE JUEGO */
         #canvas-container {
             width: 96vw; flex-grow: 1; display: flex; justify-content: center; align-items: center;
             position: relative; margin: 5px 0;
@@ -35,25 +35,24 @@
             background: #000005;
         }
 
-        /* CONTROL D-PAD CENTRAL */
-        #dpad-container {
-            width: 100%; height: 160px; display: flex; justify-content: center; 
-            align-items: center; background: #050508; flex-shrink: 0; padding-bottom: 10px; z-index: 10;
+        /* JOYSTICK REDONDO ANÁLOGO */
+        #joystick-container {
+            width: 100%; height: 170px; display: flex; justify-content: center; 
+            align-items: center; background: #050508; flex-shrink: 0; padding-bottom: 20px; z-index: 10;
         }
-        #dpad {
-            width: 140px; height: 140px; display: grid; 
-            grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+        #joystick-base {
+            width: 130px; height: 130px; border-radius: 50%;
+            background: rgba(0, 240, 255, 0.15); border: 2px solid #00f0ff;
+            position: relative; display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
         }
-        .d-btn {
-            background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 10px;
-            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 24px;
-            user-select: none; -webkit-tap-highlight-color: transparent;
+        #joystick-stick {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(0, 240, 255, 0.6); border: 2px solid #ffffff;
+            position: absolute; top: 33px; left: 33px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+            transition: transform 0.05s linear;
         }
-        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
-        #btn-up { grid-column: 2; grid-row: 1; }
-        #btn-left { grid-column: 1; grid-row: 2; }
-        #btn-right { grid-column: 3; grid-row: 2; }
-        #btn-down { grid-column: 2; grid-row: 3; }
     </style>
 </head>
 <body>
@@ -69,12 +68,10 @@
         <canvas id="gameCanvas"></canvas>
     </div>
 
-    <div id="dpad-container">
-        <div id="dpad">
-            <div id="btn-up" class="d-btn">&#9650;</div>
-            <div id="btn-left" class="d-btn">&#9668;</div>
-            <div id="btn-right" class="d-btn">&#9658;</div>
-            <div id="btn-down" class="d-btn">&#9660;</div>
+    <!-- ZONA DEL JOYSTICK REDONDO -->
+    <div id="joystick-container">
+        <div id="joystick-base">
+            <div id="joystick-stick"></div>
         </div>
     </div>
 
@@ -179,14 +176,6 @@
             splitItem.y = Math.floor(Math.random() * ROWS);
         }
 
-        function changeDir(newDir) {
-            initAudio();
-            if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
-            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
-            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
-            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
-        }
-
         function doSplit() {
             if (snake.length <= 3) return;
             let half = Math.floor(snake.length / 2);
@@ -209,7 +198,7 @@
             else if (direction === 'UP') head.y--;
             else if (direction === 'DOWN') head.y++;
 
-            // Choque con paredes del cuadro rojo
+            // Choque con paredes
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
                 playSound('die');
                 resetGame();
@@ -304,7 +293,7 @@
             ctx.arc(splitItem.x * GRID_SIZE + GRID_SIZE/2, splitItem.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // Serpiente Principal (Verde neón y Azul)
+            // Serpiente Principal
             snake.forEach((seg, index) => {
                 let px = seg.x * GRID_SIZE;
                 let py = seg.y * GRID_SIZE;
@@ -323,7 +312,7 @@
                 }
             });
 
-            // Serpientes Divididas (Naranja y Amarillo)
+            // Serpientes Divididas
             splitSnakes.forEach(group => {
                 group.body.forEach((seg, index) => {
                     let px = seg.x * GRID_SIZE;
@@ -345,18 +334,85 @@
             });
         }
 
-        const bindBtn = (id, dir) => {
-            const el = document.getElementById(id);
-            el.addEventListener('touchstart', (e) => { e.preventDefault(); changeDir(dir); });
-            el.addEventListener('click', (e) => { e.preventDefault(); changeDir(dir); });
-        };
+        // LÓGICA DEL JOYSTICK ANÁLOGO
+        const base = document.getElementById('joystick-base');
+        const stick = document.getElementById('joystick-stick');
+        let isDragging = false;
+        let baseRect, centerX, centerY;
 
-        bindBtn('btn-up', 'UP');
-        bindBtn('btn-down', 'DOWN');
-        bindBtn('btn-left', 'LEFT');
-        bindBtn('btn-right', 'RIGHT');
+        function updateJoystickCenter() {
+            baseRect = base.getBoundingClientRect();
+            centerX = baseRect.width / 2;
+            centerY = baseRect.height / 2;
+        }
 
-        // Arreglo directo de inicio
+        window.addEventListener('resize', updateJoystickCenter);
+        updateJoystickCenter();
+
+        function handleTouch(clientX, clientY) {
+            let x = clientX - baseRect.left - centerX;
+            let y = clientY - baseRect.top - centerY;
+            let distance = Math.sqrt(x * x + y * y);
+            let maxRadius = 40;
+
+            if (distance > maxRadius) {
+                x = (x / distance) * maxRadius;
+                y = (y / distance) * maxRadius;
+            }
+
+            stick.style.transform = `translate(${x}px, ${y}px)`;
+
+            // Traducir ángulo del joystick a dirección de la serpiente
+            if (distance > 10) {
+                let angle = Math.atan2(y, x) * (180 / Math.PI);
+                initAudio();
+
+                if (angle >= -45 && angle <= 45) {
+                    if (direction !== 'LEFT') nextDirection = 'RIGHT';
+                } else if (angle > 45 && angle < 135) {
+                    if (direction !== 'UP') nextDirection = 'DOWN';
+                } else if (angle >= 135 || angle <= -135) {
+                    if (direction !== 'RIGHT') nextDirection = 'LEFT';
+                } else if (angle > -135 && angle < -45) {
+                    if (direction !== 'DOWN') nextDirection = 'UP';
+                }
+            }
+        }
+
+        base.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            updateJoystickCenter();
+            handleTouch(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            handleTouch(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+            stick.style.transform = `translate(0px, 0px)`;
+        });
+
+        // Soporte para Mouse en PC
+        base.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateJoystickCenter();
+            handleTouch(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            handleTouch(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            stick.style.transform = `translate(0px, 0px)`;
+        });
+
+        // Inicializar
         setupCanvasSize();
         resetGame();
         draw();
