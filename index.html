@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - D-Pad Control</title>
+    <title>Snake Split Adventure - Single DPad & Hard Walls v3</title>
     <style>
         * { box-sizing: border-box; }
         body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; width: 100%; height: 100%; }
         #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
-        canvas { display: block; border: 2px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
+        canvas { display: block; border: 3px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
         
-        /* Control central en cruz (D-Pad) */
-        #dpad {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 160px; height: 160px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-            z-index: 10; user-select: none;
+        /* ÚNICO CONTROL CENTRAL EN CRUZ (D-PAD) */
+        #dpad-container {
+            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+            width: 170px; height: 170px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+            z-index: 99; user-select: none; touch-action: manipulation;
         }
         .d-btn {
-            background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 12px;
-            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 26px;
-            backdrop-filter: blur(4px); user-select: none;
+            background: rgba(0, 240, 255, 0.3); border: 2px solid #00f0ff; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 28px;
+            backdrop-filter: blur(4px); user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        .d-btn:active { background: rgba(0, 240, 255, 0.6); }
+        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
@@ -30,7 +30,7 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="dpad">
+        <div id="dpad-container">
             <div id="btn-up" class="d-btn">&#9650;</div>
             <div id="btn-left" class="d-btn">&#9668;</div>
             <div id="btn-right" class="d-btn">&#9658;</div>
@@ -108,7 +108,7 @@
             sceneRef = this;
             initGame(this);
 
-            // Enlazar controles de la cruz (D-Pad)
+            // Único Control Central (D-Pad en Cruz)
             document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('UP'); });
             document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('DOWN'); });
             document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('LEFT'); });
@@ -169,160 +169,4 @@
                 let eye1 = scene.add.circle(6, -6, 4, 0xff0000);
                 let eye2 = scene.add.circle(6, 6, 4, 0xff0000);
                 let pupil1 = scene.add.circle(7, -6, 1.5, 0xffffff);
-                let pupil2 = scene.add.circle(7, 6, 1.5, 0xffffff);
-
-                container.add([base, eye1, eye2, pupil1, pupil2]);
-            } else {
-                let bodyPiece = scene.add.graphics();
-                bodyPiece.fillStyle(color, 0.9);
-                bodyPiece.lineStyle(1.5, 0x00ffff, 0.6);
-                bodyPiece.fillCircle(0, 0, size / 2 - 2);
-                bodyPiece.strokeCircle(0, 0, size / 2 - 2);
-
-                let core = scene.add.circle(0, 0, 4, 0xffffff, 0.6);
-                container.add([bodyPiece, core]);
-            }
-
-            return { container: container, x: x, y: y, isHead: isHead };
-        }
-
-        function destroySegment(seg) {
-            if (seg && seg.container) seg.container.destroy();
-        }
-
-        function spawnFood() {
-            let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
-            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 190) / size))) * size + 80;
-            food.setPosition(rx, ry);
-        }
-
-        function spawnSplitItem() {
-            let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
-            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 190) / size))) * size + 80;
-            splitItem.setPosition(rx, ry);
-        }
-
-        function doSplit() {
-            if (snake.length <= 3) return;
-            let half = Math.floor(snake.length / 2);
-            let tailPart = snake.splice(half);
-
-            tailPart[0].container.destroy();
-            let newHeadX = tailPart[0].x;
-            let newHeadY = tailPart[0].y;
-            tailPart[0] = createSegment(sceneRef, newHeadX, newHeadY, true, 0xff5500);
-
-            splitSnakes.push({
-                body: tailPart,
-                dir: ['UP', 'DOWN', 'LEFT', 'RIGHT'][Math.floor(Math.random() * 4)]
-            });
-            playSound('split');
-        }
-
-        function update(time) {
-            if (time < moveTime) return;
-            moveTime = time + 220; // Velocidad cómoda y controlable
-
-            direction = nextDirection;
-
-            let hx = snake[0].x;
-            let hy = snake[0].y;
-
-            if (direction === 'RIGHT') hx += size;
-            else if (direction === 'LEFT') hx -= size;
-            else if (direction === 'UP') hy -= size;
-            else if (direction === 'DOWN') hy += size;
-
-            let maxW = Math.floor(screenWidth / size) * size;
-            let maxH = Math.floor((screenHeight - 170) / size) * size;
-
-            if (hx >= maxW) hx = 0;
-            else if (hx < 0) hx = maxW - size;
-            if (hy >= maxH) hy = 80;
-            else if (hy < 80) hy = maxH - size;
-
-            // 1. Choque mortal con su propia cola
-            for (let i = 2; i < snake.length; i++) {
-                if (hx === snake[i].x && hy === snake[i].y) {
-                    playSound('die');
-                    initGame(sceneRef);
-                    return;
-                }
-            }
-
-            // 2. Choque mortal contra las serpientes divididas (enemigas en el mapa)
-            for (let group of splitSnakes) {
-                for (let seg of group.body) {
-                    if (hx === seg.x && hy === seg.y) {
-                        playSound('die');
-                        initGame(sceneRef);
-                        return;
-                    }
-                }
-            }
-
-            // Comer Manzana Rosa (+10)
-            if (Math.abs(hx - food.x) < size / 2 && Math.abs(hy - food.y) < size / 2) {
-                score += 10;
-                playSound('eat');
-                checkHighScore();
-                let tail = snake[snake.length - 1];
-                let newSeg = createSegment(sceneRef, tail.x, tail.y, false, 0x00bfff);
-                snake.push(newSeg);
-                spawnFood();
-            }
-
-            // Comer Estrella Amarilla de DIVISIÓN (+25)
-            if (splitItem && Math.abs(hx - splitItem.x) < size / 2 && Math.abs(hy - splitItem.y) < size / 2) {
-                score += 25;
-                checkHighScore();
-                doSplit();
-                spawnSplitItem();
-            }
-
-            for (let i = snake.length - 1; i > 0; i--) {
-                snake[i].x = snake[i - 1].x;
-                snake[i].y = snake[i - 1].y;
-                snake[i].container.setPosition(snake[i].x, snake[i].y);
-            }
-            snake[0].x = hx;
-            snake[0].y = hy;
-            snake[0].container.setPosition(hx, hy);
-
-            if (direction === 'RIGHT') snake[0].container.setRotation(0);
-            else if (direction === 'DOWN') snake[0].container.setRotation(Math.PI / 2);
-            else if (direction === 'LEFT') snake[0].container.setRotation(Math.PI);
-            else if (direction === 'UP') snake[0].container.setRotation(-Math.PI / 2);
-
-            // Mover las serpientes divididas automáticas en el campo de batalla
-            splitSnakes.forEach(group => {
-                let sBody = group.body;
-                let sHeadX = sBody[0].x;
-                let sHeadY = sBody[0].y;
-
-                if (group.dir === 'DOWN') sHeadY += size;
-                else if (group.dir === 'UP') sHeadY -= size;
-                else if (group.dir === 'RIGHT') sHeadX += size;
-                else if (group.dir === 'LEFT') sHeadX -= size;
-
-                if (sHeadX >= maxW) sHeadX = 0;
-                else if (sHeadX < 0) sHeadX = maxW - size;
-                if (sHeadY >= maxH) sHeadY = 80;
-                else if (sHeadY < 80) sHeadY = maxH - size;
-
-                if (Math.random() < 0.12) {
-                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
-                }
-
-                for (let i = sBody.length - 1; i > 0; i--) {
-                    sBody[i].x = sBody[i - 1].x;
-                    sBody[i].y = sBody[i - 1].y;
-                    sBody[i].container.setPosition(sBody[i].x, sBody[i].y);
-                }
-                sBody[0].x = sHeadX;
-                sBody[0].y = sHeadY;
-                sBody[0].container.setPosition(sHeadX, sHeadY);
-            });
-        }
-
+                let pupil2 = scene.add.circle(7, 6, 1.5, 0xff
