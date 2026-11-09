@@ -10,37 +10,38 @@
             margin: 0; padding: 0; 
             background-color: #050508; color: #fff; 
             font-family: Arial, sans-serif; 
-            overflow: hidden; width: 100%; height: 100vh; 
+            overflow: hidden; width: 100vw; height: 100vh; 
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
         #ui-header {
-            width: 100%; height: 55px; display: flex; flex-direction: column; 
+            width: 100%; height: 50px; display: flex; flex-direction: column; 
             justify-content: center; align-items: center; background: #0a0a12;
-            border-bottom: 2px solid #ff0055; z-index: 10; flex-shrink: 0;
+            border-bottom: 2px solid #ff0055; flex-shrink: 0; z-index: 10;
         }
         #title { font-size: 15px; font-weight: bold; color: #ff0055; margin: 0; }
         #scores { font-size: 13px; font-weight: bold; margin-top: 3px; display: flex; gap: 20px; }
         #score-val { color: #00ffcc; }
         #high-val { color: #ffcc00; }
 
+        /* CANCHA AGRANDADA */
         #canvas-container {
-            width: 100%; flex-grow: 1; display: flex; justify-content: center; align-items: center;
-            background: #000; position: relative;
+            width: 96vw; flex-grow: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; margin: 5px 0;
         }
         canvas { 
-            border: 2px solid #ff0055; 
-            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); 
-            border-radius: 6px;
+            border: 3px solid #ff0055; 
+            box-shadow: 0 0 18px rgba(255, 0, 85, 0.5); 
+            border-radius: 8px;
             background: #000005;
         }
 
         /* CONTROL D-PAD CENTRAL */
         #dpad-container {
-            width: 100%; height: 170px; display: flex; justify-content: center; 
-            align-items: center; background: #050508; flex-shrink: 0; z-index: 10; padding-bottom: 10px;
+            width: 100%; height: 160px; display: flex; justify-content: center; 
+            align-items: center; background: #050508; flex-shrink: 0; padding-bottom: 10px; z-index: 10;
         }
         #dpad {
-            width: 150px; height: 150px; display: grid; 
+            width: 140px; height: 140px; display: grid; 
             grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
         }
         .d-btn {
@@ -81,9 +82,9 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const GRID_SIZE = 20;
-        let COLS = 15;
-        let ROWS = 18;
+        const GRID_SIZE = 22;
+        let COLS = 14;
+        let ROWS = 16;
         
         let snake = [];
         let splitSnakes = [];
@@ -93,19 +94,18 @@
         let nextDirection = 'RIGHT';
         let score = 0;
         let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
-        let gameLoop = null;
         let audioCtx = null;
 
         function setupCanvasSize() {
             const container = document.getElementById('canvas-container');
-            const maxWidth = container.clientWidth - 10;
-            const maxHeight = container.clientHeight - 10;
+            const maxWidth = container.clientWidth - 4;
+            const maxHeight = container.clientHeight - 4;
 
             COLS = Math.floor(maxWidth / GRID_SIZE);
             ROWS = Math.floor(maxHeight / GRID_SIZE);
 
-            if (COLS < 10) COLS = 10;
-            if (ROWS < 10) ROWS = 10;
+            if (COLS < 8) COLS = 8;
+            if (ROWS < 8) ROWS = 8;
 
             canvas.width = COLS * GRID_SIZE;
             canvas.height = ROWS * GRID_SIZE;
@@ -209,14 +209,14 @@
             else if (direction === 'UP') head.y--;
             else if (direction === 'DOWN') head.y++;
 
-            // 1. Choque con paredes (Muerte)
+            // Choque con paredes del cuadro rojo
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
                 playSound('die');
                 resetGame();
                 return;
             }
 
-            // 2. Choque con su propio cuerpo
+            // Choque propio
             for (let i = 1; i < snake.length; i++) {
                 if (head.x === snake[i].x && head.y === snake[i].y) {
                     playSound('die');
@@ -225,7 +225,7 @@
                 }
             }
 
-            // 3. Choque con serpientes divididas enemigas
+            // Choque con culebras enemigas
             for (let group of splitSnakes) {
                 for (let seg of group.body) {
                     if (head.x === seg.x && head.y === seg.y) {
@@ -238,7 +238,6 @@
 
             snake.unshift(head);
 
-            // Comer manzana rosa
             if (head.x === food.x && head.y === food.y) {
                 score += 10;
                 checkScore();
@@ -253,7 +252,7 @@
                 snake.pop();
             }
 
-            // Mover serpientes enemigas
+            // Movimiento de culebras enemigas
             splitSnakes.forEach(group => {
                 let sBody = group.body;
                 let sHead = { x: sBody[0].x, y: sBody[0].y };
@@ -293,7 +292,7 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Comida Rosa
+            // Manzana Rosa
             ctx.fillStyle = '#ff0055';
             ctx.beginPath();
             ctx.arc(food.x * GRID_SIZE + GRID_SIZE/2, food.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
@@ -305,7 +304,7 @@
             ctx.arc(splitItem.x * GRID_SIZE + GRID_SIZE/2, splitItem.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // Serpiente Principal
+            // Serpiente Principal (Verde neón y Azul)
             snake.forEach((seg, index) => {
                 let px = seg.x * GRID_SIZE;
                 let py = seg.y * GRID_SIZE;
@@ -314,8 +313,8 @@
                     ctx.fillStyle = '#00ffcc';
                     ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
                     ctx.fillStyle = '#ff0000';
-                    ctx.fillRect(px + 4, py + 4, 4, 4);
-                    ctx.fillRect(px + GRID_SIZE - 8, py + 4, 4, 4);
+                    ctx.fillRect(px + 3, py + 3, 4, 4);
+                    ctx.fillRect(px + GRID_SIZE - 7, py + 3, 4, 4);
                 } else {
                     ctx.fillStyle = '#00bfff';
                     ctx.beginPath();
@@ -324,7 +323,7 @@
                 }
             });
 
-            // Serpientes Divididas
+            // Serpientes Divididas (Naranja y Amarillo)
             splitSnakes.forEach(group => {
                 group.body.forEach((seg, index) => {
                     let px = seg.x * GRID_SIZE;
@@ -334,8 +333,8 @@
                         ctx.fillStyle = '#ff5500';
                         ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
                         ctx.fillStyle = '#ffff00';
-                        ctx.fillRect(px + 4, py + 4, 4, 4);
-                        ctx.fillRect(px + GRID_SIZE - 8, py + 4, 4, 4);
+                        ctx.fillRect(px + 3, py + 3, 4, 4);
+                        ctx.fillRect(px + GRID_SIZE - 7, py + 3, 4, 4);
                     } else {
                         ctx.fillStyle = '#ffaa00';
                         ctx.beginPath();
@@ -357,12 +356,11 @@
         bindBtn('btn-left', 'LEFT');
         bindBtn('btn-right', 'RIGHT');
 
-        // Inicializar correctamente al cargar
+        // Arreglo directo de inicio
         setupCanvasSize();
         resetGame();
         draw();
-        if (gameLoop) clearInterval(gameLoop);
-        gameLoop = setInterval(update, 210);
+        setInterval(update, 200);
     </script>
 </body>
 </html>
