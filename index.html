@@ -10,32 +10,34 @@
             margin: 0; padding: 0; 
             background-color: #050508; color: #fff; 
             font-family: Arial, sans-serif; 
-            overflow: hidden; width: 100%; height: 100%; 
-            display: flex; flex-direction: column; align-items: center;
+            overflow: hidden; width: 100%; height: 100vh; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
         #ui-header {
-            width: 100%; height: 60px; display: flex; flex-direction: column; 
+            width: 100%; height: 55px; display: flex; flex-direction: column; 
             justify-content: center; align-items: center; background: #0a0a12;
-            border-bottom: 2px solid #ff0055; z-index: 10;
+            border-bottom: 2px solid #ff0055; z-index: 10; flex-shrink: 0;
         }
-        #title { font-size: 16px; font-weight: bold; color: #ff0055; margin: 0; }
-        #scores { font-size: 14px; font-weight: bold; margin-top: 4px; display: flex; gap: 20px; }
+        #title { font-size: 15px; font-weight: bold; color: #ff0055; margin: 0; }
+        #scores { font-size: 13px; font-weight: bold; margin-top: 3px; display: flex; gap: 20px; }
         #score-val { color: #00ffcc; }
         #high-val { color: #ffcc00; }
 
         #canvas-container {
-            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
-            position: relative; padding: 5px;
+            width: 100%; flex-grow: 1; display: flex; justify-content: center; align-items: center;
+            background: #000; position: relative;
         }
         canvas { 
-            background: #000; border: 2px solid #ff0055; 
-            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); border-radius: 6px;
+            border: 2px solid #ff0055; 
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); 
+            border-radius: 6px;
+            background: #000005;
         }
 
         /* CONTROL D-PAD CENTRAL */
         #dpad-container {
-            height: 170px; width: 100%; display: flex; justify-content: center; 
-            align-items: center; padding-bottom: 10px; z-index: 10;
+            width: 100%; height: 170px; display: flex; justify-content: center; 
+            align-items: center; background: #050508; flex-shrink: 0; z-index: 10; padding-bottom: 10px;
         }
         #dpad {
             width: 150px; height: 150px; display: grid; 
@@ -79,8 +81,9 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const GRID_SIZE = 24;
-        let COLS, ROWS;
+        const GRID_SIZE = 20;
+        let COLS = 15;
+        let ROWS = 18;
         
         let snake = [];
         let splitSnakes = [];
@@ -92,6 +95,21 @@
         let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
         let gameLoop = null;
         let audioCtx = null;
+
+        function setupCanvasSize() {
+            const container = document.getElementById('canvas-container');
+            const maxWidth = container.clientWidth - 10;
+            const maxHeight = container.clientHeight - 10;
+
+            COLS = Math.floor(maxWidth / GRID_SIZE);
+            ROWS = Math.floor(maxHeight / GRID_SIZE);
+
+            if (COLS < 10) COLS = 10;
+            if (ROWS < 10) ROWS = 10;
+
+            canvas.width = COLS * GRID_SIZE;
+            canvas.height = ROWS * GRID_SIZE;
+        }
 
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -129,18 +147,6 @@
                     osc.start(); osc.stop(audioCtx.currentTime + 0.3);
                 }
             } catch (e) {}
-        }
-
-        function resizeCanvas() {
-            const container = document.getElementById('canvas-container');
-            const w = container.clientWidth - 10;
-            const h = container.clientHeight - 10;
-
-            COLS = Math.floor(w / GRID_SIZE);
-            ROWS = Math.floor(h / GRID_SIZE);
-
-            canvas.width = COLS * GRID_SIZE;
-            canvas.height = ROWS * GRID_SIZE;
         }
 
         function resetGame() {
@@ -203,7 +209,7 @@
             else if (direction === 'UP') head.y--;
             else if (direction === 'DOWN') head.y++;
 
-            // 1. Paredes mortales
+            // 1. Choque con paredes (Muerte)
             if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
                 playSound('die');
                 resetGame();
@@ -219,6 +225,144 @@
                 }
             }
 
-            // 3. Choque con serpientes divididas
+            // 3. Choque con serpientes divididas enemigas
             for (let group of splitSnakes) {
-                for (let seg of group.body)
+                for (let seg of group.body) {
+                    if (head.x === seg.x && head.y === seg.y) {
+                        playSound('die');
+                        resetGame();
+                        return;
+                    }
+                }
+            }
+
+            snake.unshift(head);
+
+            // Comer manzana rosa
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                checkScore();
+                playSound('eat');
+                spawnFood();
+            } else if (head.x === splitItem.x && head.y === splitItem.y) {
+                score += 25;
+                checkScore();
+                doSplit();
+                spawnSplitItem();
+            } else {
+                snake.pop();
+            }
+
+            // Mover serpientes enemigas
+            splitSnakes.forEach(group => {
+                let sBody = group.body;
+                let sHead = { x: sBody[0].x, y: sBody[0].y };
+
+                if (group.dir === 'DOWN') sHead.y++;
+                else if (group.dir === 'UP') sHead.y--;
+                else if (group.dir === 'RIGHT') sHead.x++;
+                else if (group.dir === 'LEFT') sHead.x--;
+
+                if (sHead.x < 0 || sHead.x >= COLS || sHead.y < 0 || sHead.y >= ROWS) {
+                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
+                    return;
+                }
+
+                if (Math.random() < 0.15) {
+                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
+                }
+
+                sBody.unshift(sHead);
+                sBody.pop();
+            });
+
+            draw();
+        }
+
+        function checkScore() {
+            document.getElementById('score-val').innerText = 'PUNTOS: ' + score;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snake_highscore', highScore);
+                document.getElementById('high-val').innerText = 'RÉCORD: ' + highScore;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Comida Rosa
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath();
+            ctx.arc(food.x * GRID_SIZE + GRID_SIZE/2, food.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Estrella Amarilla
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            ctx.arc(splitItem.x * GRID_SIZE + GRID_SIZE/2, splitItem.y * GRID_SIZE + GRID_SIZE/2, GRID_SIZE/2 - 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Serpiente Principal
+            snake.forEach((seg, index) => {
+                let px = seg.x * GRID_SIZE;
+                let py = seg.y * GRID_SIZE;
+
+                if (index === 0) {
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(px + 4, py + 4, 4, 4);
+                    ctx.fillRect(px + GRID_SIZE - 8, py + 4, 4, 4);
+                } else {
+                    ctx.fillStyle = '#00bfff';
+                    ctx.beginPath();
+                    ctx.arc(px + GRID_SIZE/2, py + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            // Serpientes Divididas
+            splitSnakes.forEach(group => {
+                group.body.forEach((seg, index) => {
+                    let px = seg.x * GRID_SIZE;
+                    let py = seg.y * GRID_SIZE;
+
+                    if (index === 0) {
+                        ctx.fillStyle = '#ff5500';
+                        ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                        ctx.fillStyle = '#ffff00';
+                        ctx.fillRect(px + 4, py + 4, 4, 4);
+                        ctx.fillRect(px + GRID_SIZE - 8, py + 4, 4, 4);
+                    } else {
+                        ctx.fillStyle = '#ffaa00';
+                        ctx.beginPath();
+                        ctx.arc(px + GRID_SIZE/2, py + GRID_SIZE/2, GRID_SIZE/2 - 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            });
+        }
+
+        const bindBtn = (id, dir) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); changeDir(dir); });
+            el.addEventListener('click', (e) => { e.preventDefault(); changeDir(dir); });
+        };
+
+        bindBtn('btn-up', 'UP');
+        bindBtn('btn-down', 'DOWN');
+        bindBtn('btn-left', 'LEFT');
+        bindBtn('btn-right', 'RIGHT');
+
+        // Inicializar correctamente al cargar
+        setupCanvasSize();
+        resetGame();
+        draw();
+        if (gameLoop) clearInterval(gameLoop);
+        gameLoop = setInterval(update, 210);
+    </script>
+</body>
+</html>
