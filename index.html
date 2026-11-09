@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Controls Edition</title>
+    <title>Snake Split Adventure - Ultimate Battle</title>
     <style>
         * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: sans-serif; overflow: hidden; width: 100%; height: 100%; }
+        body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; width: 100%; height: 100%; }
         #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
         canvas { display: block; border: 2px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
-        /* Botones de control en pantalla */
         .control-btn {
-            position: absolute; bottom: 30px; width: 75px; height: 75px; background: rgba(0, 240, 255, 0.2);
+            position: absolute; bottom: 25px; width: 80px; height: 80px; background: rgba(0, 240, 255, 0.25);
             border: 2px solid #00f0ff; border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            font-size: 28px; color: #00f0ff; user-select: none; z-index: 10; backdrop-filter: blur(4px);
+            font-size: 32px; color: #00f0ff; user-select: none; z-index: 10; backdrop-filter: blur(4px);
         }
-        #btn-left { left: 40px; }
-        #btn-right { right: 40px; }
+        #btn-left { left: 30px; }
+        #btn-right { right: 30px; }
     </style>
 </head>
 <body>
@@ -40,34 +39,66 @@
 
         let snake = [];
         let splitSnakes = [];
-        let food, splitItem, scoreText;
+        let food, splitItem, speedItem, scoreText, highScoreText;
         let direction = 'RIGHT';
         let nextDirection = 'RIGHT';
         let moveTime = 0;
         let score = 0;
+        let highScore = localStorage.getItem('snake_highscore') || 0;
         let sceneRef;
+        let audioCtx;
 
         const game = new Phaser.Game(config);
 
         function preload() {}
 
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'eat') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'split') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                } else if (type === 'die') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }
+            } catch (e) {}
+        }
+
         function create() {
             sceneRef = this;
             initGame(this);
 
-            // Enlazar botones virtuales en pantalla
-            document.getElementById('btn-left').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                turnLeft();
-            });
-            document.getElementById('btn-right').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                turnRight();
-            });
+            document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); turnLeft(); });
+            document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); turnRight(); });
 
-            // Respaldo por si toca la pantalla a los lados
             this.input.on('pointerdown', (pointer) => {
-                if (pointer.y > screenHeight - 150) return; // Evitar conflicto con los botones de abajo
+                if (pointer.y > screenHeight - 140) return;
                 if (pointer.x < screenWidth / 2) turnLeft();
                 else turnRight();
             });
@@ -93,8 +124,11 @@
             nextDirection = 'RIGHT';
 
             if (scoreText) scoreText.destroy();
-            scene.add.text(screenWidth / 2, 22, 'SNAKE SPLIT: BATTLE ARENA', { fontSize: '18px', fill: '#ff0055', fontStyle: 'bold' }).setOrigin(0.5);
-            scoreText = scene.add.text(screenWidth / 2, 48, 'PUNTOS: 0', { fontSize: '16px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
+            if (highScoreText) highScoreText.destroy();
+
+            scene.add.text(screenWidth / 2, 18, 'SNAKE SPLIT: BATTLE ARENA', { fontSize: '18px', fill: '#ff0055', fontStyle: 'bold' }).setOrigin(0.5);
+            scoreText = scene.add.text(screenWidth / 2 - 80, 42, 'PUNTOS: 0', { fontSize: '15px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
+            highScoreText = scene.add.text(screenWidth / 2 + 80, 42, 'RÉCORD: ' + highScore, { fontSize: '15px', fill: '#ffcc00', fontStyle: 'bold' }).setOrigin(0.5);
 
             if (snake.length > 0) snake.forEach(s => destroySegment(s));
             splitSnakes.forEach(group => group.body.forEach(s => destroySegment(s)));
@@ -116,13 +150,16 @@
             if (splitItem) splitItem.destroy();
             splitItem = scene.add.star(0, 0, 5, size / 2, size / 4, 0xffcc00);
             spawnSplitItem();
+
+            if (speedItem) speedItem.destroy();
+            speedItem = scene.add.rectangle(0, 0, size / 2, size / 2, 0x00ffff);
+            spawnSpeedItem();
         }
 
         function createSegment(scene, x, y, isHead, color) {
             let container = scene.add.container(x, y);
 
             if (isHead) {
-                // Cabeza agresiva de serpiente con ojos afilados
                 let base = scene.add.graphics();
                 base.fillStyle(color, 1);
                 base.lineStyle(2, 0xffffff, 0.9);
@@ -136,7 +173,6 @@
 
                 container.add([base, eye1, eye2, pupil1, pupil2]);
             } else {
-                // Cuerpo con escamas blindadas
                 let bodyPiece = scene.add.graphics();
                 bodyPiece.fillStyle(color, 0.9);
                 bodyPiece.lineStyle(1.5, 0x00ffff, 0.6);
@@ -166,111 +202,13 @@
             splitItem.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
         }
 
+        function spawnSpeedItem() {
+            let cols = Math.floor((screenWidth - 40) / size);
+            let rows = Math.floor((screenHeight - 140) / size);
+            speedItem.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
+        }
+
         function doSplit() {
-            if (snake.length <= 4) return;
+            if (snake.length <= 3) return;
             let half = Math.floor(snake.length / 2);
-            let tailPart = snake.splice(half);
-
-            tailPart[0].container.destroy();
-            let newHeadX = tailPart[0].x;
-            let newHeadY = tailPart[0].y;
-            tailPart[0] = createSegment(sceneRef, newHeadX, newHeadY, true, 0xff5500);
-
-            splitSnakes.push({
-                body: tailPart,
-                dir: 'DOWN'
-            });
-        }
-
-        function update(time) {
-            if (time < moveTime) return;
-            moveTime = time + 140;
-
-            direction = nextDirection;
-
-            let hx = snake[0].x;
-            let hy = snake[0].y;
-
-            if (direction === 'RIGHT') hx += size;
-            else if (direction === 'LEFT') hx -= size;
-            else if (direction === 'UP') hy -= size;
-            else if (direction === 'DOWN') hy += size;
-
-            let maxW = Math.floor(screenWidth / size) * size;
-            let maxH = Math.floor((screenHeight - 80) / size) * size;
-
-            if (hx >= maxW) hx = 0;
-            else if (hx < 0) hx = maxW - size;
-            if (hy >= maxH) hy = 80;
-            else if (hy < 80) hy = maxH - size;
-
-            for (let i = 2; i < snake.length; i++) {
-                if (hx === snake[i].x && hy === snake[i].y) {
-                    initGame(sceneRef);
-                    return;
-                }
-            }
-
-            if (Math.abs(hx - food.x) < size / 2 && Math.abs(hy - food.y) < size / 2) {
-                score += 10;
-                scoreText.setText('PUNTOS: ' + score);
-                let tail = snake[snake.length - 1];
-                let newSeg = createSegment(sceneRef, tail.x, tail.y, false, 0x00bfff);
-                snake.push(newSeg);
-                spawnFood();
-            }
-
-            if (splitItem && Math.abs(hx - splitItem.x) < size / 2 && Math.abs(hy - splitItem.y) < size / 2) {
-                score += 25;
-                scoreText.setText('PUNTOS: ' + score);
-                doSplit();
-                spawnSplitItem();
-            }
-
-            for (let i = snake.length - 1; i > 0; i--) {
-                snake[i].x = snake[i - 1].x;
-                snake[i].y = snake[i - 1].y;
-                snake[i].container.setPosition(snake[i].x, snake[i].y);
-            }
-            snake[0].x = hx;
-            snake[0].y = hy;
-            snake[0].container.setPosition(hx, hy);
-
-            if (direction === 'RIGHT') snake[0].container.setRotation(0);
-            else if (direction === 'DOWN') snake[0].container.setRotation(Math.PI / 2);
-            else if (direction === 'LEFT') snake[0].container.setRotation(Math.PI);
-            else if (direction === 'UP') snake[0].container.setRotation(-Math.PI / 2);
-
-            splitSnakes.forEach(group => {
-                let sBody = group.body;
-                let sHeadX = sBody[0].x;
-                let sHeadY = sBody[0].y;
-
-                if (group.dir === 'DOWN') sHeadY += size;
-                else if (group.dir === 'UP') sHeadY -= size;
-                else if (group.dir === 'RIGHT') sHeadX += size;
-                else if (group.dir === 'LEFT') sHeadX -= size;
-
-                if (sHeadX >= maxW) sHeadX = 0;
-                else if (sHeadX < 0) sHeadX = maxW - size;
-                if (sHeadY >= maxH) sHeadY = 80;
-                else if (sHeadY < 80) sHeadY = maxH - size;
-
-                if (Math.random() < 0.2) {
-                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
-                }
-
-                for (let i = sBody.length - 1; i > 0; i--) {
-                    sBody[i].x = sBody[i - 1].x;
-                    sBody[i].y = sBody[i - 1].y;
-                    sBody[i].container.setPosition(sBody[i].x, sBody[i].y);
-                }
-                sBody[0].x = sHeadX;
-                sBody[0].y = sHeadY;
-                sBody[0].container.setPosition(sHeadX, sHeadY);
-            });
-        }
-    </script>
-</body>
-</html>
+            let tailPart
