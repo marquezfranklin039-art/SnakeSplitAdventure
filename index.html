@@ -187,15 +187,15 @@
         }
 
         function spawnFood() {
-            let cols = Math.floor((screenWidth - 40) / size);
-            let rows = Math.floor((screenHeight - 140) / size);
-            food.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
+            let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
+            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 160) / size))) * size + 80;
+            food.setPosition(rx, ry);
         }
 
         function spawnSplitItem() {
-            let cols = Math.floor((screenWidth - 40) / size);
-            let rows = Math.floor((screenHeight - 140) / size);
-            splitItem.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
+            let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
+            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 160) / size))) * size + 80;
+            splitItem.setPosition(rx, ry);
         }
 
         function doSplit() {
@@ -217,7 +217,7 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 220; // VELOCIDAD LENTA Y CÓMODA PARA MANIOBRAR
+            moveTime = time + 220;
 
             direction = nextDirection;
 
@@ -290,7 +290,7 @@
             else if (direction === 'LEFT') snake[0].container.setRotation(Math.PI);
             else if (direction === 'UP') snake[0].container.setRotation(-Math.PI / 2);
 
-            // Mover serpientes divididas y aplicarles colisión de muerte si tocan algo
+            // Mover serpientes divididas
             splitSnakes.forEach(group => {
                 let sBody = group.body;
                 let sHeadX = sBody[0].x;
