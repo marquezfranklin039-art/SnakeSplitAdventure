@@ -3,25 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Battle Pro</title>
+    <title>Snake Split Adventure - D-Pad Control</title>
     <style>
         * { box-sizing: border-box; }
         body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; width: 100%; height: 100%; }
         #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
         canvas { display: block; border: 2px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
-        .control-btn {
-            position: absolute; bottom: 25px; width: 85px; height: 85px; background: rgba(0, 240, 255, 0.25);
-            border: 2px solid #00f0ff; border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            font-size: 34px; color: #00f0ff; user-select: none; z-index: 10; backdrop-filter: blur(4px);
+        
+        /* Control central en cruz (D-Pad) */
+        #dpad {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 160px; height: 160px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+            z-index: 10; user-select: none;
         }
-        #btn-left { left: 35px; }
-        #btn-right { right: 35px; }
+        .d-btn {
+            background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 26px;
+            backdrop-filter: blur(4px); user-select: none;
+        }
+        .d-btn:active { background: rgba(0, 240, 255, 0.6); }
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <div id="btn-left" class="control-btn">&#9668;</div>
-        <div id="btn-right" class="control-btn">&#9658;</div>
+        <div id="dpad">
+            <div id="btn-up" class="d-btn">&#9650;</div>
+            <div id="btn-left" class="d-btn">&#9668;</div>
+            <div id="btn-right" class="d-btn">&#9658;</div>
+            <div id="btn-down" class="d-btn">&#9660;</div>
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script>
@@ -94,28 +108,18 @@
             sceneRef = this;
             initGame(this);
 
-            document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); turnLeft(); });
-            document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); turnRight(); });
-
-            this.input.on('pointerdown', (pointer) => {
-                if (pointer.y > screenHeight - 140) return;
-                if (pointer.x < screenWidth / 2) turnLeft();
-                else turnRight();
-            });
+            // Enlazar controles de la cruz (D-Pad)
+            document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('UP'); });
+            document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('DOWN'); });
+            document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('LEFT'); });
+            document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('RIGHT'); });
         }
 
-        function turnLeft() {
-            if (direction === 'RIGHT') nextDirection = 'UP';
-            else if (direction === 'UP') nextDirection = 'LEFT';
-            else if (direction === 'LEFT') nextDirection = 'DOWN';
-            else if (direction === 'DOWN') nextDirection = 'RIGHT';
-        }
-
-        function turnRight() {
-            if (direction === 'RIGHT') nextDirection = 'DOWN';
-            else if (direction === 'DOWN') nextDirection = 'LEFT';
-            else if (direction === 'LEFT') nextDirection = 'UP';
-            else if (direction === 'UP') nextDirection = 'RIGHT';
+        function changeDir(newDir) {
+            if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
+            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
+            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
+            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
         }
 
         function initGame(scene) {
@@ -188,13 +192,13 @@
 
         function spawnFood() {
             let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
-            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 160) / size))) * size + 80;
+            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 190) / size))) * size + 80;
             food.setPosition(rx, ry);
         }
 
         function spawnSplitItem() {
             let rx = Math.floor(Math.random() * Math.max(1, Math.floor(screenWidth / size) - 2)) * size + size;
-            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 160) / size))) * size + 80;
+            let ry = Math.floor(Math.random() * Math.max(1, Math.floor((screenHeight - 190) / size))) * size + 80;
             splitItem.setPosition(rx, ry);
         }
 
@@ -217,7 +221,7 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 220;
+            moveTime = time + 220; // Velocidad cómoda y controlable
 
             direction = nextDirection;
 
@@ -230,7 +234,7 @@
             else if (direction === 'DOWN') hy += size;
 
             let maxW = Math.floor(screenWidth / size) * size;
-            let maxH = Math.floor((screenHeight - 100) / size) * size;
+            let maxH = Math.floor((screenHeight - 170) / size) * size;
 
             if (hx >= maxW) hx = 0;
             else if (hx < 0) hx = maxW - size;
@@ -246,7 +250,7 @@
                 }
             }
 
-            // 2. Choque mortal contra las serpientes divididas (enemigas)
+            // 2. Choque mortal contra las serpientes divididas (enemigas en el mapa)
             for (let group of splitSnakes) {
                 for (let seg of group.body) {
                     if (hx === seg.x && hy === seg.y) {
@@ -290,7 +294,7 @@
             else if (direction === 'LEFT') snake[0].container.setRotation(Math.PI);
             else if (direction === 'UP') snake[0].container.setRotation(-Math.PI / 2);
 
-            // Mover serpientes divididas
+            // Mover las serpientes divididas automáticas en el campo de batalla
             splitSnakes.forEach(group => {
                 let sBody = group.body;
                 let sHeadX = sBody[0].x;
@@ -322,14 +326,3 @@
             });
         }
 
-        function checkHighScore() {
-            scoreText.setText('PUNTOS: ' + score);
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('snake_highscore', highScore);
-                highScoreText.setText('RÉCORD: ' + highScore);
-            }
-        }
-    </script>
-</body>
-</html>
