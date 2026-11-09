@@ -3,58 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Master Edition</title>
+    <title>Snake Split Arena</title>
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; touch-action: none; }
         body, html { 
             margin: 0; padding: 0; 
             background-color: #050508; color: #fff; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: Arial, sans-serif; 
             overflow: hidden; width: 100%; height: 100%; 
-            display: flex; justify-content: center; align-items: center;
+            display: flex; flex-direction: column; align-items: center;
         }
-        #game-container { 
-            width: 100vw; height: 100vh; 
-            display: flex; justify-content: center; align-items: center; 
-            position: relative; background: #000;
+        #ui-header {
+            width: 100%; height: 60px; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; background: #0a0a12;
+            border-bottom: 2px solid #ff0055; z-index: 10;
+        }
+        #title { font-size: 16px; font-weight: bold; color: #ff0055; margin: 0; }
+        #scores { font-size: 14px; font-weight: bold; margin-top: 4px; display: flex; gap: 20px; }
+        #score-val { color: #00ffcc; }
+        #high-val { color: #ffcc00; }
+
+        #canvas-container {
+            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
+            position: relative; padding: 5px;
         }
         canvas { 
-            display: block; 
-            border: 3px solid #ff0055; 
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.5); 
-            border-radius: 8px; 
+            background: #000; border: 2px solid #ff0055; 
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); border-radius: 6px;
         }
-        
-        /* D-PAD CENTRAL EN CRUZ TOTALMENTE CENTRADO */
+
+        /* CONTROL D-PAD CENTRAL */
         #dpad-container {
-            position: absolute; 
-            bottom: 25px; 
-            left: 50%; 
-            transform: translateX(-50%);
-            width: 180px; 
-            height: 180px; 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(3, 1fr);
-            z-index: 100; 
-            user-select: none; 
-            touch-action: manipulation;
+            height: 170px; width: 100%; display: flex; justify-content: center; 
+            align-items: center; padding-bottom: 10px; z-index: 10;
+        }
+        #dpad {
+            width: 150px; height: 150px; display: grid; 
+            grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
         }
         .d-btn {
-            background: rgba(0, 240, 255, 0.25); 
-            border: 2px solid #00f0ff; 
-            border-radius: 12px;
-            display: flex; justify-content: center; align-items: center; 
-            color: #00f0ff; font-size: 30px;
-            backdrop-filter: blur(6px); 
-            user-select: none; 
-            -webkit-tap-highlight-color: transparent;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 10px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 24px;
+            user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        .d-btn:active { 
-            background: rgba(0, 240, 255, 0.7); 
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
-        }
+        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
@@ -62,54 +54,53 @@
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="dpad-container">
+    <div id="ui-header">
+        <div id="title">SNAKE SPLIT: BATTLE ARENA</div>
+        <div id="scores">
+            <span id="score-val">PUNTOS: 0</span>
+            <span id="high-val">RÉCORD: 0</span>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="dpad-container">
+        <div id="dpad">
             <div id="btn-up" class="d-btn">&#9650;</div>
             <div id="btn-left" class="d-btn">&#9668;</div>
             <div id="btn-right" class="d-btn">&#9658;</div>
             <div id="btn-down" class="d-btn">&#9660;</div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
     <script>
-        const GRID_SIZE = 30;
-        const SCREEN_W = window.innerWidth;
-        const SCREEN_H = window.innerHeight;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
 
-        // Cálculos exactos para el límite de la cancha
-        const COLS = Math.floor((SCREEN_W - 20) / GRID_SIZE);
-        const ROWS = Math.floor((SCREEN_H - 240) / GRID_SIZE);
-        const PLAY_W = COLS * GRID_SIZE;
-        const PLAY_H = ROWS * GRID_SIZE;
-        const OFFSET_X = Math.floor((SCREEN_W - PLAY_W) / 2);
-        const OFFSET_Y = 70;
-
-        const config = {
-            type: Phaser.AUTO,
-            width: SCREEN_W,
-            height: SCREEN_H,
-            parent: 'game-container',
-            scene: { create: create, update: update }
-        };
-
+        const GRID_SIZE = 24;
+        let COLS, ROWS;
+        
         let snake = [];
         let splitSnakes = [];
-        let food, splitItem, scoreText, highScoreText, arenaBorder;
+        let food = { x: 0, y: 0 };
+        let splitItem = { x: 0, y: 0 };
         let direction = 'RIGHT';
         let nextDirection = 'RIGHT';
-        let moveTime = 0;
         let score = 0;
         let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
-        let sceneRef;
-        let audioCtx;
+        let gameLoop = null;
+        let audioCtx = null;
 
-        const game = new Phaser.Game(config);
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
 
         function playSound(type) {
             try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
+                initAudio();
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
                 osc.connect(gain);
@@ -132,38 +123,102 @@
                 } else if (type === 'die') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.35);
-                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+                    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
                 }
             } catch (e) {}
         }
 
-        function create() {
-            sceneRef = this;
-            
-            // Dibujar borde neón exacto de la cancha
-            arenaBorder = this.add.graphics();
-            arenaBorder.lineStyle(3, 0xff0055, 0.9);
-            arenaBorder.strokeRect(OFFSET_X - 2, OFFSET_Y - 2, PLAY_W + 4, PLAY_H + 4);
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const w = container.clientWidth - 10;
+            const h = container.clientHeight - 10;
 
-            initGame(this);
+            COLS = Math.floor(w / GRID_SIZE);
+            ROWS = Math.floor(h / GRID_SIZE);
 
-            // Eventos táctiles para los 4 botones
-            const bindBtn = (id, dir) => {
-                const el = document.getElementById(id);
-                const trigger = (e) => { e.preventDefault(); changeDir(dir); };
-                el.addEventListener('touchstart', trigger);
-                el.addEventListener('mousedown', trigger);
-            };
+            canvas.width = COLS * GRID_SIZE;
+            canvas.height = ROWS * GRID_SIZE;
+        }
 
-            bindBtn('btn-up', 'UP');
-            bindBtn('btn-down', 'DOWN');
-            bindBtn('btn-left', 'LEFT');
-            bindBtn('btn-right', 'RIGHT');
+        function resetGame() {
+            score = 0;
+            direction = 'RIGHT';
+            nextDirection = 'RIGHT';
+            document.getElementById('score-val').innerText = 'PUNTOS: ' + score;
+            document.getElementById('high-val').innerText = 'RÉCORD: ' + highScore;
+
+            let startX = Math.floor(COLS / 2);
+            let startY = Math.floor(ROWS / 2);
+
+            snake = [];
+            for (let i = 0; i < 5; i++) {
+                snake.push({ x: startX - i, y: startY });
+            }
+
+            splitSnakes = [];
+            spawnFood();
+            spawnSplitItem();
+        }
+
+        function spawnFood() {
+            food.x = Math.floor(Math.random() * COLS);
+            food.y = Math.floor(Math.random() * ROWS);
+        }
+
+        function spawnSplitItem() {
+            splitItem.x = Math.floor(Math.random() * COLS);
+            splitItem.y = Math.floor(Math.random() * ROWS);
         }
 
         function changeDir(newDir) {
+            initAudio();
             if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
-            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = '
+            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
+            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
+            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
+        }
+
+        function doSplit() {
+            if (snake.length <= 3) return;
+            let half = Math.floor(snake.length / 2);
+            let tailPart = snake.splice(half);
+
+            let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+            splitSnakes.push({
+                body: tailPart,
+                dir: dirs[Math.floor(Math.random() * dirs.length)]
+            });
+            playSound('split');
+        }
+
+        function update() {
+            direction = nextDirection;
+            let head = { x: snake[0].x, y: snake[0].y };
+
+            if (direction === 'RIGHT') head.x++;
+            else if (direction === 'LEFT') head.x--;
+            else if (direction === 'UP') head.y--;
+            else if (direction === 'DOWN') head.y++;
+
+            // 1. Paredes mortales
+            if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+                playSound('die');
+                resetGame();
+                return;
+            }
+
+            // 2. Choque con su propio cuerpo
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    playSound('die');
+                    resetGame();
+                    return;
+                }
+            }
+
+            // 3. Choque con serpientes divididas
+            for (let group of splitSnakes) {
+                for (let seg of group.body)
