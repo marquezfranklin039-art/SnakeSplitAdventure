@@ -3,21 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Battle Edition</title>
+    <title>Snake Split Adventure - Controls Edition</title>
     <style>
         * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; width: 100%; height: 100%; }
-        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: sans-serif; overflow: hidden; width: 100%; height: 100%; }
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
         canvas { display: block; border: 2px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
+        /* Botones de control en pantalla */
+        .control-btn {
+            position: absolute; bottom: 30px; width: 75px; height: 75px; background: rgba(0, 240, 255, 0.2);
+            border: 2px solid #00f0ff; border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 28px; color: #00f0ff; user-select: none; z-index: 10; backdrop-filter: blur(4px);
+        }
+        #btn-left { left: 40px; }
+        #btn-right { right: 40px; }
     </style>
 </head>
 <body>
-    <div id="game-container"></div>
+    <div id="game-container">
+        <div id="btn-left" class="control-btn">&#9668;</div>
+        <div id="btn-right" class="control-btn">&#9658;</div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script>
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
-        const size = 30; // Tamaño de la grilla táctica
+        const size = 30;
 
         const config = {
             type: Phaser.AUTO,
@@ -44,20 +55,36 @@
             sceneRef = this;
             initGame(this);
 
-            // Controles táctiles de respuesta rápida
-            this.input.on('pointerdown', (pointer) => {
-                if (pointer.x < screenWidth / 2) {
-                    if (direction === 'RIGHT') nextDirection = 'UP';
-                    else if (direction === 'UP') nextDirection = 'LEFT';
-                    else if (direction === 'LEFT') nextDirection = 'DOWN';
-                    else if (direction === 'DOWN') nextDirection = 'RIGHT';
-                } else {
-                    if (direction === 'RIGHT') nextDirection = 'DOWN';
-                    else if (direction === 'DOWN') nextDirection = 'LEFT';
-                    else if (direction === 'LEFT') nextDirection = 'UP';
-                    else if (direction === 'UP') nextDirection = 'RIGHT';
-                }
+            // Enlazar botones virtuales en pantalla
+            document.getElementById('btn-left').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                turnLeft();
             });
+            document.getElementById('btn-right').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                turnRight();
+            });
+
+            // Respaldo por si toca la pantalla a los lados
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.y > screenHeight - 150) return; // Evitar conflicto con los botones de abajo
+                if (pointer.x < screenWidth / 2) turnLeft();
+                else turnRight();
+            });
+        }
+
+        function turnLeft() {
+            if (direction === 'RIGHT') nextDirection = 'UP';
+            else if (direction === 'UP') nextDirection = 'LEFT';
+            else if (direction === 'LEFT') nextDirection = 'DOWN';
+            else if (direction === 'DOWN') nextDirection = 'RIGHT';
+        }
+
+        function turnRight() {
+            if (direction === 'RIGHT') nextDirection = 'DOWN';
+            else if (direction === 'DOWN') nextDirection = 'LEFT';
+            else if (direction === 'LEFT') nextDirection = 'UP';
+            else if (direction === 'UP') nextDirection = 'RIGHT';
         }
 
         function initGame(scene) {
@@ -77,7 +104,7 @@
             let startY = Math.floor((screenHeight / 2) / size) * size;
 
             snake = [];
-            for (let i = 0; i < 6; i++) {
+            for (let i = 0; i < 5; i++) {
                 let isHead = (i === 0);
                 snake.push(createSegment(scene, startX - (i * size), startY, isHead, 0x00ffcc));
             }
@@ -91,19 +118,17 @@
             spawnSplitItem();
         }
 
-        // Función para crear un segmento de aspecto agresivo (Cabeza con ojos afilados o cuerpo blindado)
         function createSegment(scene, x, y, isHead, color) {
             let container = scene.add.container(x, y);
 
             if (isHead) {
-                // Cabeza de combate agresiva (forma poligonal/hexagonal con brillo)
+                // Cabeza agresiva de serpiente con ojos afilados
                 let base = scene.add.graphics();
                 base.fillStyle(color, 1);
-                base.lineStyle(2, 0xffffff, 0.8);
-                base.fillRoundedRect(-size/2, -size/2, size, size, 8);
-                base.strokeRoundedRect(-size/2, -size/2, size, size, 8);
+                base.lineStyle(2, 0xffffff, 0.9);
+                base.fillRoundedRect(-size/2, -size/2, size, size, 10);
+                base.strokeRoundedRect(-size/2, -size/2, size, size, 10);
 
-                // Ojos afilados de serpiente agresiva
                 let eye1 = scene.add.circle(6, -6, 4, 0xff0000);
                 let eye2 = scene.add.circle(6, 6, 4, 0xff0000);
                 let pupil1 = scene.add.circle(7, -6, 1.5, 0xffffff);
@@ -111,14 +136,14 @@
 
                 container.add([base, eye1, eye2, pupil1, pupil2]);
             } else {
-                // Cuerpo blindado con placa central
+                // Cuerpo con escamas blindadas
                 let bodyPiece = scene.add.graphics();
                 bodyPiece.fillStyle(color, 0.9);
                 bodyPiece.lineStyle(1.5, 0x00ffff, 0.6);
                 bodyPiece.fillCircle(0, 0, size / 2 - 2);
                 bodyPiece.strokeCircle(0, 0, size / 2 - 2);
 
-                let core = scene.add.circle(0, 0, 4, 0xffffff, 0.5);
+                let core = scene.add.circle(0, 0, 4, 0xffffff, 0.6);
                 container.add([bodyPiece, core]);
             }
 
@@ -131,13 +156,13 @@
 
         function spawnFood() {
             let cols = Math.floor((screenWidth - 40) / size);
-            let rows = Math.floor((screenHeight - 100) / size);
+            let rows = Math.floor((screenHeight - 140) / size);
             food.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
         }
 
         function spawnSplitItem() {
             let cols = Math.floor((screenWidth - 40) / size);
-            let rows = Math.floor((screenHeight - 100) / size);
+            let rows = Math.floor((screenHeight - 140) / size);
             splitItem.setPosition((Math.floor(Math.random() * cols) + 1) * size, (Math.floor(Math.random() * rows) + 3) * size);
         }
 
@@ -146,7 +171,6 @@
             let half = Math.floor(snake.length / 2);
             let tailPart = snake.splice(half);
 
-            // Cambiar la cabeza de la serpiente dividida a color fuego/naranja para la batalla
             tailPart[0].container.destroy();
             let newHeadX = tailPart[0].x;
             let newHeadY = tailPart[0].y;
@@ -160,7 +184,7 @@
 
         function update(time) {
             if (time < moveTime) return;
-            moveTime = time + 135;
+            moveTime = time + 140;
 
             direction = nextDirection;
 
@@ -172,16 +196,14 @@
             else if (direction === 'UP') hy -= size;
             else if (direction === 'DOWN') hy += size;
 
-            // Bordes adaptativos sin pérdidas
             let maxW = Math.floor(screenWidth / size) * size;
-            let maxH = Math.floor(screenHeight / size) * size;
+            let maxH = Math.floor((screenHeight - 80) / size) * size;
 
             if (hx >= maxW) hx = 0;
             else if (hx < 0) hx = maxW - size;
             if (hy >= maxH) hy = 80;
             else if (hy < 80) hy = maxH - size;
 
-            // Auto-colisión (Game Over)
             for (let i = 2; i < snake.length; i++) {
                 if (hx === snake[i].x && hy === snake[i].y) {
                     initGame(sceneRef);
@@ -189,7 +211,6 @@
                 }
             }
 
-            // Comer comida normal
             if (Math.abs(hx - food.x) < size / 2 && Math.abs(hy - food.y) < size / 2) {
                 score += 10;
                 scoreText.setText('PUNTOS: ' + score);
@@ -199,7 +220,6 @@
                 spawnFood();
             }
 
-            // Comer ítem de división (Estrella Amarilla)
             if (splitItem && Math.abs(hx - splitItem.x) < size / 2 && Math.abs(hy - splitItem.y) < size / 2) {
                 score += 25;
                 scoreText.setText('PUNTOS: ' + score);
@@ -207,7 +227,6 @@
                 spawnSplitItem();
             }
 
-            // Mover cuerpo principal
             for (let i = snake.length - 1; i > 0; i--) {
                 snake[i].x = snake[i - 1].x;
                 snake[i].y = snake[i - 1].y;
@@ -217,13 +236,11 @@
             snake[0].y = hy;
             snake[0].container.setPosition(hx, hy);
 
-            // Rotar la cabeza de la serpiente según la dirección
             if (direction === 'RIGHT') snake[0].container.setRotation(0);
             else if (direction === 'DOWN') snake[0].container.setRotation(Math.PI / 2);
             else if (direction === 'LEFT') snake[0].container.setRotation(Math.PI);
             else if (direction === 'UP') snake[0].container.setRotation(-Math.PI / 2);
 
-            // Mover serpientes secundarias (rivales divididas en batalla)
             splitSnakes.forEach(group => {
                 let sBody = group.body;
                 let sHeadX = sBody[0].x;
@@ -239,8 +256,7 @@
                 if (sHeadY >= maxH) sHeadY = 80;
                 else if (sHeadY < 80) sHeadY = maxH - size;
 
-                // Cambio aleatorio de dirección para la serpiente enemiga dividida
-                if (Math.random() < 0.15) {
+                if (Math.random() < 0.2) {
                     let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
                     group.dir = dirs[Math.floor(Math.random() * dirs.length)];
                 }
