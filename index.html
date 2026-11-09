@@ -3,25 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Adventure - Single DPad & Hard Walls v3</title>
+    <title>Snake Split Adventure - Master Edition</title>
     <style>
         * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; background-color: #050508; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; width: 100%; height: 100%; }
-        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
-        canvas { display: block; border: 3px solid #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); border-radius: 6px; }
+        body, html { 
+            margin: 0; padding: 0; 
+            background-color: #050508; color: #fff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            overflow: hidden; width: 100%; height: 100%; 
+            display: flex; justify-content: center; align-items: center;
+        }
+        #game-container { 
+            width: 100vw; height: 100vh; 
+            display: flex; justify-content: center; align-items: center; 
+            position: relative; background: #000;
+        }
+        canvas { 
+            display: block; 
+            border: 3px solid #ff0055; 
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.5); 
+            border-radius: 8px; 
+        }
         
-        /* ÚNICO CONTROL CENTRAL EN CRUZ (D-PAD) */
+        /* D-PAD CENTRAL EN CRUZ TOTALMENTE CENTRADO */
         #dpad-container {
-            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
-            width: 170px; height: 170px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
-            z-index: 99; user-select: none; touch-action: manipulation;
+            position: absolute; 
+            bottom: 25px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 180px; 
+            height: 180px; 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr);
+            z-index: 100; 
+            user-select: none; 
+            touch-action: manipulation;
         }
         .d-btn {
-            background: rgba(0, 240, 255, 0.3); border: 2px solid #00f0ff; border-radius: 10px;
-            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 28px;
-            backdrop-filter: blur(4px); user-select: none; -webkit-tap-highlight-color: transparent;
+            background: rgba(0, 240, 255, 0.25); 
+            border: 2px solid #00f0ff; 
+            border-radius: 12px;
+            display: flex; justify-content: center; align-items: center; 
+            color: #00f0ff; font-size: 30px;
+            backdrop-filter: blur(6px); 
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
         }
-        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
+        .d-btn:active { 
+            background: rgba(0, 240, 255, 0.7); 
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
+        }
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
@@ -39,32 +72,38 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <script>
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        const size = 30;
+        const GRID_SIZE = 30;
+        const SCREEN_W = window.innerWidth;
+        const SCREEN_H = window.innerHeight;
+
+        // Cálculos exactos para el límite de la cancha
+        const COLS = Math.floor((SCREEN_W - 20) / GRID_SIZE);
+        const ROWS = Math.floor((SCREEN_H - 240) / GRID_SIZE);
+        const PLAY_W = COLS * GRID_SIZE;
+        const PLAY_H = ROWS * GRID_SIZE;
+        const OFFSET_X = Math.floor((SCREEN_W - PLAY_W) / 2);
+        const OFFSET_Y = 70;
 
         const config = {
             type: Phaser.AUTO,
-            width: screenWidth,
-            height: screenHeight,
+            width: SCREEN_W,
+            height: SCREEN_H,
             parent: 'game-container',
-            scene: { preload: preload, create: create, update: update }
+            scene: { create: create, update: update }
         };
 
         let snake = [];
         let splitSnakes = [];
-        let food, splitItem, scoreText, highScoreText;
+        let food, splitItem, scoreText, highScoreText, arenaBorder;
         let direction = 'RIGHT';
         let nextDirection = 'RIGHT';
         let moveTime = 0;
         let score = 0;
-        let highScore = localStorage.getItem('snake_highscore') || 0;
+        let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
         let sceneRef;
         let audioCtx;
 
         const game = new Phaser.Game(config);
-
-        function preload() {}
 
         function playSound(type) {
             try {
@@ -82,91 +121,49 @@
                     osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
                     gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
                 } else if (type === 'split') {
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.25);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
                     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.25);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
                 } else if (type === 'die') {
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.4);
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.35);
                     gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.4);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.35);
                 }
             } catch (e) {}
         }
 
         function create() {
             sceneRef = this;
+            
+            // Dibujar borde neón exacto de la cancha
+            arenaBorder = this.add.graphics();
+            arenaBorder.lineStyle(3, 0xff0055, 0.9);
+            arenaBorder.strokeRect(OFFSET_X - 2, OFFSET_Y - 2, PLAY_W + 4, PLAY_H + 4);
+
             initGame(this);
 
-            // Único Control Central (D-Pad en Cruz)
-            document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('UP'); });
-            document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('DOWN'); });
-            document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('LEFT'); });
-            document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); changeDir('RIGHT'); });
+            // Eventos táctiles para los 4 botones
+            const bindBtn = (id, dir) => {
+                const el = document.getElementById(id);
+                const trigger = (e) => { e.preventDefault(); changeDir(dir); };
+                el.addEventListener('touchstart', trigger);
+                el.addEventListener('mousedown', trigger);
+            };
+
+            bindBtn('btn-up', 'UP');
+            bindBtn('btn-down', 'DOWN');
+            bindBtn('btn-left', 'LEFT');
+            bindBtn('btn-right', 'RIGHT');
         }
 
         function changeDir(newDir) {
             if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
-            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
-            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
-            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
-        }
-
-        function initGame(scene) {
-            score = 0;
-            direction = 'RIGHT';
-            nextDirection = 'RIGHT';
-
-            if (scoreText) scoreText.destroy();
-            if (highScoreText) highScoreText.destroy();
-
-            scene.add.text(screenWidth / 2, 18, 'SNAKE SPLIT: BATTLE ARENA', { fontSize: '18px', fill: '#ff0055', fontStyle: 'bold' }).setOrigin(0.5);
-            scoreText = scene.add.text(screenWidth / 2 - 80, 42, 'PUNTOS: 0', { fontSize: '15px', fill: '#00ffcc', fontStyle: 'bold' }).setOrigin(0.5);
-            highScoreText = scene.add.text(screenWidth / 2 + 80, 42, 'RÉCORD: ' + highScore, { fontSize: '15px', fill: '#ffcc00', fontStyle: 'bold' }).setOrigin(0.5);
-
-            if (snake.length > 0) snake.forEach(s => destroySegment(s));
-            splitSnakes.forEach(group => group.body.forEach(s => destroySegment(s)));
-            splitSnakes = [];
-
-            let startX = Math.floor((screenWidth / 2) / size) * size;
-            let startY = Math.floor((screenHeight / 2) / size) * size;
-
-            snake = [];
-            for (let i = 0; i < 5; i++) {
-                let isHead = (i === 0);
-                snake.push(createSegment(scene, startX - (i * size), startY, isHead, 0x00ffcc));
-            }
-
-            if (food) food.destroy();
-            food = scene.add.circle(0, 0, size / 2 - 2, 0xff0055);
-            spawnFood();
-
-            if (splitItem) splitItem.destroy();
-            splitItem = scene.add.star(0, 0, 5, size / 2, size / 4, 0xffcc00);
-            spawnSplitItem();
-        }
-
-        function createSegment(scene, x, y, isHead, color) {
-            let container = scene.add.container(x, y);
-
-            if (isHead) {
-                let base = scene.add.graphics();
-                base.fillStyle(color, 1);
-                base.lineStyle(2, 0xffffff, 0.9);
-                base.fillRoundedRect(-size/2, -size/2, size, size, 10);
-                base.strokeRoundedRect(-size/2, -size/2, size, size, 10);
-
-                let eye1 = scene.add.circle(6, -6, 4, 0xff0000);
-                let eye2 = scene.add.circle(6, 6, 4, 0xff0000);
-                let pupil1 = scene.add.circle(7, -6, 1.5, 0xffffff);
-                let pupil2 = scene.add.circle(7, 6, 1.5, 0xff
+            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = '
