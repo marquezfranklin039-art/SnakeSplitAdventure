@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Arena - Level 1</title>
+    <title>Snake Split Arena - Pro Game</title>
     <style>
         * { box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
         body, html { 
@@ -24,11 +24,11 @@
         #target-val { color: #ff00ff; }
         #high-val { color: #ffcc00; }
 
-        /* CANCHA CENTRADA */
+        /* CANCHA GRANDE Y CENTRADA */
         #gameCanvas { 
             position: fixed;
             left: 50%;
-            top: 55px;
+            top: 60px;
             transform: translateX(-50%);
             border: 3px solid #ff0055; 
             box-shadow: 0 0 18px rgba(255, 0, 85, 0.5); 
@@ -37,7 +37,7 @@
             z-index: 5;
         }
 
-        /* MENÚ DE VICTORIA / SIGUIENTE NIVEL */
+        /* VENTANA DE VICTORIA */
         #victory-modal {
             display: none;
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -58,7 +58,7 @@
         }
         #next-btn:active { background: #e0004c; }
 
-        /* CONTROL LEVANTADO LIBRE DE LA BARRA INFERIOR */
+        /* CONTROL D-PAD LEVANTADO DE LA BARRA INFERIOR */
         #dpad-container {
             position: fixed;
             bottom: 85px;
@@ -71,4 +71,108 @@
             z-index: 20;
         }
         .d-btn {
-            background: rgba(0, 240, 255, 0.3); border
+            background: rgba(0, 240, 255, 0.3); border: 2px solid #00f0ff; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 26px;
+            user-select: none;
+        }
+        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+    </style>
+</head>
+<body>
+    <div id="ui-header">
+        <div id="title">SNAKE SPLIT: BATTLE ARENA - ÁREA 1</div>
+        <div id="scores">
+            <span id="score-val">PUNTOS: 0</span>
+            <span id="target-val">META: 300</span>
+            <span id="high-val">RÉCORD: 0</span>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="victory-modal">
+        <div id="victory-card">
+            <h2>¡ÁREA 1 COMPLETADA!</h2>
+            <p>¡Llegaste a los 300 puntos con éxito!</p>
+            <button id="next-btn">SIGUIENTE ÁREA</button>
+        </div>
+    </div>
+
+    <div id="dpad-container">
+        <div id="btn-up" class="d-btn">&#9650;</div>
+        <div id="btn-left" class="d-btn">&#9668;</div>
+        <div id="btn-right" class="d-btn">&#9658;</div>
+        <div id="btn-down" class="d-btn">&#9660;</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GRID_SIZE = 20;
+        const TARGET_SCORE = 300;
+        let COLS = 16;
+        let ROWS = 20;
+        
+        let snake = [];
+        let splitSnakes = [];
+        let food = { x: 0, y: 0 };
+        let splitItem = { x: 0, y: 0 };
+        let direction = 'RIGHT';
+        let nextDirection = 'RIGHT';
+        let score = 0;
+        let currentLevel = 1;
+        let isLevelComplete = false;
+        let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
+        let audioCtx = null;
+
+        function setupDimensions() {
+            const availW = window.innerWidth * 0.94;
+            const availH = window.innerHeight - 60 - 240; // Espacio optimizado
+
+            COLS = Math.floor(availW / GRID_SIZE);
+            ROWS = Math.floor(availH / GRID_SIZE);
+
+            if (COLS < 12) COLS = 12;
+            if (ROWS < 14) ROWS = 14;
+
+            canvas.width = COLS * GRID_SIZE;
+            canvas.height = ROWS * GRID_SIZE;
+        }
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'eat') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'split') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (type === 'win') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.15);
+                    osc.frequency.setValueAtTime(783,
