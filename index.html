@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Arena - Final Fix</title>
+    <title>Snake Split Arena - Lifted DPad</title>
     <style>
         * { box-sizing: border-box; touch-action: none; }
         body, html { 
@@ -14,7 +14,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
         #ui-header {
-            width: 100%; height: 48px; display: flex; flex-direction: column; 
+            width: 100%; height: 46px; display: flex; flex-direction: column; 
             justify-content: center; align-items: center; background: #0a0a12;
             border-bottom: 2px solid #ff0055; flex-shrink: 0; z-index: 10;
         }
@@ -23,10 +23,10 @@
         #score-val { color: #00ffcc; }
         #high-val { color: #ffcc00; }
 
-        /* CANCHA DE JUEGO ADAPTADA */
+        /* CANCHA DE JUEGO REAJUSTADA */
         #canvas-container {
             width: 92vw; flex-grow: 1; display: flex; justify-content: center; align-items: center;
-            position: relative; margin: 2px 0; max-height: calc(100vh - 240px);
+            position: relative; margin: 2px 0; max-height: calc(100vh - 270px);
         }
         canvas { 
             border: 3px solid #ff0055; 
@@ -35,20 +35,20 @@
             background: #000005;
         }
 
-        /* CONTROL D-PAD BIEN LEJOS DE LA BARRA INFERIOR */
+        /* CONTROL D-PAD SUBIDO BASTANTE PARA LIBRAR LOS BOTONES DEL CELULAR */
         #dpad-container {
-            width: 100%; height: 170px; display: flex; justify-content: center; 
+            width: 100%; height: 210px; display: flex; justify-content: center; 
             align-items: center; background: #050508; flex-shrink: 0; 
-            padding-bottom: 45px; /* Margen amplio para evitar la barra del celular */
+            padding-bottom: 85px; /* MARGEN GRANDE INFERIOR */
             z-index: 10;
         }
         #dpad {
-            width: 150px; height: 150px; display: grid; 
+            width: 140px; height: 140px; display: grid; 
             grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
         }
         .d-btn {
             background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 12px;
-            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 26px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 24px;
             user-select: none; -webkit-tap-highlight-color: transparent;
         }
         .d-btn:active { background: rgba(0, 240, 255, 0.7); }
@@ -71,7 +71,7 @@
         <canvas id="gameCanvas"></canvas>
     </div>
 
-    <!-- CONTROL EN CRUZ BIEN VISIBLE Y LEVANTADO -->
+    <!-- CONTROL SUBIDO Y DESPEJADO DE ABAJO -->
     <div id="dpad-container">
         <div id="dpad">
             <div id="btn-up" class="d-btn">&#9650;</div>
@@ -147,70 +147,4 @@
                     osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
                     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                }
-            } catch (e) {}
-        }
-
-        function resetGame() {
-            score = 0;
-            direction = 'RIGHT';
-            nextDirection = 'RIGHT';
-            document.getElementById('score-val').innerText = 'PUNTOS: ' + score;
-            document.getElementById('high-val').innerText = 'RÉCORD: ' + highScore;
-
-            let startX = Math.floor(COLS / 2);
-            let startY = Math.floor(ROWS / 2);
-
-            snake = [];
-            for (let i = 0; i < 5; i++) {
-                snake.push({ x: startX - i, y: startY });
-            }
-
-            splitSnakes = [];
-            spawnFood();
-            spawnSplitItem();
-        }
-
-        function spawnFood() {
-            food.x = Math.floor(Math.random() * COLS);
-            food.y = Math.floor(Math.random() * ROWS);
-        }
-
-        function spawnSplitItem() {
-            splitItem.x = Math.floor(Math.random() * COLS);
-            splitItem.y = Math.floor(Math.random() * ROWS);
-        }
-
-        function changeDir(newDir) {
-            initAudio();
-            if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
-            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
-            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
-            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
-        }
-
-        function doSplit() {
-            if (snake.length <= 3) return;
-            let half = Math.floor(snake.length / 2);
-            let tailPart = snake.splice(half);
-
-            let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-            splitSnakes.push({
-                body: tailPart,
-                dir: dirs[Math.floor(Math.random() * dirs.length)]
-            });
-            playSound('split');
-        }
-
-        function update() {
-            direction = nextDirection;
-            let head = { x: snake[0].x, y: snake[0].y };
-
-            if (direction === 'RIGHT') head.x++;
-            else if (direction === 'LEFT') head.x--;
-            else if (direction === 'UP') head.y--;
-            else if (direction === 'DOWN') head.y++;
-
-            // Choque con paredes
-            if (head.x < 0 || head.x >= COLS
+                    osc.start
