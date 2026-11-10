@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split Arena</title>
+    <title>Snake Split Arena - Fix Definitivo</title>
     <style>
         * { box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
         body, html { 
@@ -24,28 +24,25 @@
         #target-val { color: #ff00ff; }
         #high-val { color: #ffcc00; }
 
-        /* CANCHA CENTRADA Y FIJA */
+        /* ÁREA DE JUEGO ESTABLE */
         #canvas-area {
             width: 100%; flex-grow: 1; display: flex; 
             justify-content: center; align-items: center;
-            position: relative; padding-bottom: 90px;
+            position: relative; padding-bottom: 100px;
         }
         canvas { 
             border: 3px solid #ff0055; 
-            box-shadow: 0 0 18px rgba(255, 0, 85, 0.5); 
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.6); 
             border-radius: 8px;
             background: #000005;
             display: block;
-            width: 90vw;
-            max-width: 360px;
-            height: auto;
         }
 
-        /* MODAL DE VICTORIA */
+        /* MODAL DE VICTORIA (META 300 PUNTOS) */
         #victory-modal {
             display: none;
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(5px);
+            background: rgba(5, 5, 8, 0.9); backdrop-filter: blur(5px);
             z-index: 100; flex-direction: column; justify-content: center; align-items: center;
         }
         #victory-card {
@@ -61,13 +58,13 @@
             box-shadow: 0 0 10px rgba(255, 0, 85, 0.5); cursor: pointer;
         }
 
-        /* CONTROL LEVANTADO CÓMODO SOBRE LA BARRA INFERIOR */
+        /* CONTROL D-PAD FLOTANTE Y SEPARADO DE LA BARRA DEL CELULAR */
         #dpad-container {
             position: fixed;
-            bottom: 85px;
+            bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
-            width: 150px; height: 150px; 
+            width: 160px; height: 160px; 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr);
@@ -75,7 +72,7 @@
         }
         .d-btn {
             background: rgba(0, 240, 255, 0.3); border: 2px solid #00f0ff; border-radius: 12px;
-            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 26px;
+            display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 28px;
             user-select: none;
         }
         .d-btn:active { background: rgba(0, 240, 255, 0.7); }
@@ -102,7 +99,7 @@
     <div id="victory-modal">
         <div id="victory-card">
             <h2>¡ÁREA COMPLETADA!</h2>
-            <p>¡Lograste los 300 puntos!</p>
+            <p>¡Alcanzaste los 300 puntos!</p>
             <button id="next-btn">SIGUIENTE ÁREA</button>
         </div>
     </div>
@@ -118,4 +115,288 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const GRID
+        const GRID_SIZE = 20;
+        const TARGET_SCORE = 300;
+        const COLS = 15;
+        const ROWS = 19;
+        
+        let snake = [];
+        let splitSnakes = [];
+        let food = { x: 2, y: 2 };
+        let splitItem = { x: 10, y: 5 };
+        let direction = 'RIGHT';
+        let nextDirection = 'RIGHT';
+        let score = 0;
+        let currentLevel = 1;
+        let isLevelComplete = false;
+        let highScore = parseInt(localStorage.getItem('snake_highscore')) || 0;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'eat') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'split') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (type === 'win') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.15);
+                    osc.frequency.setValueAtTime(783, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+                } else if (type === 'die') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                }
+            } catch (e) {}
+        }
+
+        function resetGame() {
+            score = 0;
+            isLevelComplete = false;
+            direction = 'RIGHT';
+            nextDirection = 'RIGHT';
+            document.getElementById('victory-modal').style.display = 'none';
+            document.getElementById('score-val').innerText = 'PUNTOS: ' + score;
+            document.getElementById('high-val').innerText = 'RÉCORD: ' + highScore;
+            document.getElementById('title').innerText = 'SNAKE SPLIT: BATTLE ARENA - ÁREA ' + currentLevel;
+
+            let startX = Math.floor(COLS / 2);
+            let startY = Math.floor(ROWS / 2);
+
+            snake = [];
+            for (let i = 0; i < 5; i++) {
+                snake.push({ x: startX - i, y: startY });
+            }
+
+            splitSnakes = [];
+            spawnFood();
+            spawnSplitItem();
+            draw();
+        }
+
+        function spawnFood() {
+            food.x = Math.floor(Math.random() * COLS);
+            food.y = Math.floor(Math.random() * ROWS);
+        }
+
+        function spawnSplitItem() {
+            splitItem.x = Math.floor(Math.random() * COLS);
+            splitItem.y = Math.floor(Math.random() * ROWS);
+        }
+
+        function changeDir(newDir) {
+            initAudio();
+            if (isLevelComplete) return;
+            if (newDir === 'UP' && direction !== 'DOWN') nextDirection = 'UP';
+            if (newDir === 'DOWN' && direction !== 'UP') nextDirection = 'DOWN';
+            if (newDir === 'LEFT' && direction !== 'RIGHT') nextDirection = 'LEFT';
+            if (newDir === 'RIGHT' && direction !== 'LEFT') nextDirection = 'RIGHT';
+        }
+
+        function doSplit() {
+            if (snake.length <= 3) return;
+            let half = Math.floor(snake.length / 2);
+            let tailPart = snake.splice(half);
+
+            let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+            splitSnakes.push({
+                body: tailPart,
+                dir: dirs[Math.floor(Math.random() * dirs.length)]
+            });
+            playSound('split');
+        }
+
+        function update() {
+            if (isLevelComplete) return;
+
+            direction = nextDirection;
+            let head = { x: snake[0].x, y: snake[0].y };
+
+            if (direction === 'RIGHT') head.x++;
+            else if (direction === 'LEFT') head.x--;
+            else if (direction === 'UP') head.y--;
+            else if (direction === 'DOWN') head.y++;
+
+            // Colisión con paredes
+            if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+                playSound('die');
+                resetGame();
+                return;
+            }
+
+            // Colisión propia
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    playSound('die');
+                    resetGame();
+                    return;
+                }
+            }
+
+            // Colisión con culebras enemigas
+            for (let group of splitSnakes) {
+                for (let seg of group.body) {
+                    if (head.x === seg.x && head.y === seg.y) {
+                        playSound('die');
+                        resetGame();
+                        return;
+                    }
+                }
+            }
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                checkScore();
+                playSound('eat');
+                spawnFood();
+            } else if (head.x === splitItem.x && head.y === splitItem.y) {
+                score += 25;
+                checkScore();
+                doSplit();
+                spawnSplitItem();
+            } else {
+                snake.pop();
+            }
+
+            // Movimiento de culebras enemigas
+            splitSnakes.forEach(group => {
+                let sBody = group.body;
+                let sHead = { x: sBody[0].x, y: sBody[0].y };
+
+                if (group.dir === 'DOWN') sHead.y++;
+                else if (group.dir === 'UP') sHead.y--;
+                else if (group.dir === 'RIGHT') sHead.x++;
+                else if (group.dir === 'LEFT') sHead.x--;
+
+                if (sHead.x < 0 || sHead.x >= COLS || sHead.y < 0 || sHead.y >= ROWS) {
+                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
+                    return;
+                }
+
+                if (Math.random() < 0.15) {
+                    let dirs = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
+                    group.dir = dirs[Math.floor(Math.random() * dirs.length)];
+                }
+
+                sBody.unshift(sHead);
+                sBody.pop();
+            });
+
+            draw();
+        }
+
+        function checkScore() {
+            document.getElementById('score-val').innerText = 'PUNTOS: ' + score;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snake_highscore', highScore);
+                document.getElementById('high-val').innerText = 'RÉCORD: ' + highScore;
+            }
+
+            if (score >= TARGET_SCORE) {
+                isLevelComplete = true;
+                playSound('win');
+                document.getElementById('victory-modal').style.display = 'flex';
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Manzana Rosa (Cuadrado brillante para asegurar visibilidad)
+            ctx.fillStyle = '#ff0055';
+            ctx.fillRect(food.x * GRID_SIZE + 2, food.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+
+            // 2. Estrella / Ítem de División Dorado
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(splitItem.x * GRID_SIZE + 2, splitItem.y * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+
+            // 3. Serpiente Principal
+            snake.forEach((seg, index) => {
+                let px = seg.x * GRID_SIZE;
+                let py = seg.y * GRID_SIZE;
+
+                if (index === 0) {
+                    // Cabeza turquesa con ojos rojos
+                    ctx.fillStyle = '#00ffcc';
+                    ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(px + 4, py + 4, 4, 4);
+                    ctx.fillRect(px + GRID_SIZE - 8, py + 4, 4, 4);
+                } else {
+                    // Cuerpo azul
+                    ctx.fillStyle = '#00bfff';
+                    ctx.fillRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+                }
+            });
+
+            // 4. Serpientes Divididas (Enemigas)
+            splitSnakes.forEach(group => {
+                group.body.forEach((seg, index) => {
+                    let px = seg.x * GRID_SIZE;
+                    let py = seg.y * GRID_SIZE;
+
+                    if (index === 0) {
+                        ctx.fillStyle = '#ff5500';
+                        ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+                    } else {
+                        ctx.fillStyle = '#ffaa00';
+                        ctx.fillRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+                    }
+                });
+            });
+        }
+
+        const bindBtn = (id, dir) => {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); changeDir(dir); });
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); changeDir(dir); });
+        };
+
+        bindBtn('btn-up', 'UP');
+        bindBtn('btn-down', 'DOWN');
+        bindBtn('btn-left', 'LEFT');
+        bindBtn('btn-right', 'RIGHT');
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            currentLevel++;
+            resetGame();
+        });
+
+        // Iniciar juego de inmediato
+        resetGame();
+        setInterval(update, 200);
+    </script>
+</body>
+</html>
