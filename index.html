@@ -14,34 +14,34 @@
             display: flex; flex-direction: column; align-items: center;
         }
         
-        /* ENCABEZADO */
+        /* ENCABEZADO CON PAUSA Y PUNTOS */
         #ui-header {
-            width: 100%; height: 50px; display: flex; 
+            width: 100%; height: 48px; display: flex; 
             justify-content: space-between; align-items: center; background: #0a0a12;
-            border-bottom: 2px solid #ff0055; padding: 0 12px; flex-shrink: 0; z-index: 20;
+            border-bottom: 2px solid #ff0055; padding: 0 10px; flex-shrink: 0; z-index: 20;
         }
         #header-info { display: flex; flex-direction: column; align-items: flex-start; }
-        #title { font-size: 12px; font-weight: bold; color: #ff0055; margin: 0; }
-        #scores { font-size: 11px; font-weight: bold; margin-top: 2px; display: flex; gap: 8px; }
+        #title { font-size: 11px; font-weight: bold; color: #ff0055; margin: 0; }
+        #scores { font-size: 10px; font-weight: bold; margin-top: 2px; display: flex; gap: 6px; }
         #score-val { color: #00ffcc; }
         #target-val { color: #ff00ff; }
         #high-val { color: #ffcc00; }
 
         #pause-btn {
             background: #ff0055; border: none; color: #fff; border-radius: 6px; 
-            font-size: 12px; font-weight: bold; padding: 5px 10px; cursor: pointer;
+            font-size: 11px; font-weight: bold; padding: 4px 8px; cursor: pointer;
             box-shadow: 0 0 8px rgba(255, 0, 85, 0.5);
         }
 
-        /* ÁREA DE JUEGO SEGURA */
+        /* CANCHA CASI AL TAMAÑO TOTAL DE LA PANTALLA DEL CELULAR */
         #canvas-area {
             width: 100%; flex-grow: 1; display: flex; 
-            justify-content: center; align-items: center;
-            padding-bottom: 120px;
+            justify-content: center; align-items: flex-start;
+            padding-top: 4px; position: relative;
         }
         canvas { 
             border: 3px solid #ff0055; 
-            box-shadow: 0 0 15px rgba(255, 0, 85, 0.5); 
+            box-shadow: 0 0 18px rgba(255, 0, 85, 0.5); 
             border-radius: 8px;
             background: #000005;
             display: block;
@@ -67,24 +67,24 @@
         }
         .menu-btn.secondary { background: #00f0ff; color: #000; }
 
-        /* CONTROL D-PAD COMPACTO Y FUERA DEL CUADRO */
+        /* CURSOR/D-PAD COMPACTO Y SEMITRANSPARENTE ABAJO */
         #dpad-container {
             position: fixed;
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 115px; height: 115px; 
+            bottom: 35px;
+            right: 15px; /* UBICADO HACIA UNA ESQUINA DE LA PANTALLA */
+            width: 110px; height: 110px; 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr);
             z-index: 50;
+            opacity: 0.85;
         }
         .d-btn {
-            background: rgba(0, 240, 255, 0.3); border: 2px solid #00f0ff; border-radius: 8px;
+            background: rgba(0, 240, 255, 0.25); border: 2px solid #00f0ff; border-radius: 8px;
             display: flex; justify-content: center; align-items: center; color: #00f0ff; font-size: 18px;
             user-select: none;
         }
-        .d-btn:active { background: rgba(0, 240, 255, 0.7); }
+        .d-btn:active { background: rgba(0, 240, 255, 0.7); opacity: 1; }
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
@@ -92,37 +92,4 @@
     </style>
 </head>
 <body>
-    <div id="ui-header">
-        <div id="header-info">
-            <div id="title">SNAKE SPLIT - ÁREA 1</div>
-            <div id="scores">
-                <span id="score-val">PTS: 0</span>
-                <span id="target-val">META: 300</span>
-                <span id="high-val">RÉCORD: 0</span>
-            </div>
-        </div>
-        <button id="pause-btn">PAUSA</button>
-    </div>
-
-    <div id="canvas-area">
-        <canvas id="gameCanvas" width="280" height="320"></canvas>
-    </div>
-
-    <div id="pause-modal" class="modal">
-        <div class="modal-card">
-            <h2>JUEGO EN PAUSA</h2>
-            <button id="resume-btn" class="menu-btn secondary">CONTINUAR</button>
-            <button id="restart-btn" class="menu-btn">REINICIAR ÁREA</button>
-        </div>
-    </div>
-
-    <div id="victory-modal" class="modal">
-        <div class="modal-card">
-            <h2>¡ÁREA COMPLETADA!</h2>
-            <p>¡Lograste los 300 puntos!</p>
-            <button id="next-btn" class="menu-btn">SIGUIENTE ÁREA</button>
-        </div>
-    </div>
-
-    <div id="dpad-container">
-        <div id="btn-up" class="
+    <div
