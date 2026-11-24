@@ -9,7 +9,7 @@
     body {
       margin: 0;
       min-height: 100vh;
-      padding: 10px 12px;
+      padding: 12px;
       background: #eef2f6;
       color: #0f172a;
       font-family: system-ui, -apple-system, sans-serif;
@@ -21,7 +21,7 @@
       touch-action: none;
     }
     body.dark { background: #0e1116; color: #f8fafc; }
-    .hud, .top {
+    .bar {
       width: 100%;
       max-width: 360px;
       display: flex;
@@ -32,15 +32,15 @@
       font-size: 13px;
       font-weight: 700;
     }
-    .badge {
+    .pill {
       background: #ffffff;
       color: #0f172a;
       border: 1px solid #cbd5e1;
       border-radius: 999px;
       padding: 6px 10px;
     }
-    body.dark .badge { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
-    #wrap {
+    body.dark .pill { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
+    #box {
       position: relative;
       width: 100%;
       max-width: 360px;
@@ -48,17 +48,14 @@
       border-radius: 16px;
       overflow: hidden;
       border: 2px solid #94a3b8;
-      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
+      background: #ffffff;
     }
-    body.dark #wrap {
-      background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
-      border-color: #334155;
-    }
+    body.dark #box { background: #141a23; border-color: #334155; }
     canvas { width: 100%; height: 100%; display: block; }
-    .panel {
+    .layer {
       position: absolute;
       inset: 0;
-      background: rgba(241, 245, 249, 0.95);
+      background: rgba(241, 245, 249, 0.96);
       display: none;
       flex-direction: column;
       align-items: center;
@@ -66,11 +63,10 @@
       gap: 10px;
       padding: 16px;
       text-align: center;
-      z-index: 5;
     }
-    body.dark .panel { background: rgba(14, 17, 22, 0.95); }
-    .panel.show { display: flex; }
-    .controls {
+    body.dark .layer { background: rgba(14, 17, 22, 0.95); }
+    .layer.on { display: flex; }
+    .pads {
       width: 100%;
       max-width: 360px;
       margin-top: 10px;
@@ -83,366 +79,232 @@
       background: #ffffff;
       color: #0f172a;
       border-radius: 10px;
-      padding: 10px 8px;
+      padding: 10px;
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
     }
     body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
-    .primary { background: #0284c7; color: #ffffff; border-color: #0369a1; }
-    .row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .main { background: #0284c7; color: #ffffff; border-color: #0369a1; }
   </style>
 </head>
 <body>
-  <div class="top">
-    <span class="badge" id="ui-lvl">Nivel 1</span>
-    <div class="row">
-      <button id="btn-pause">⏸ Pausa</button>
-      <button id="btn-top-cfg">⚙️</button>
-    </div>
-  </div>
-  <div class="hud">
-    <span class="badge" id="ui-pts">Puntos: 0 / 300</span>
-    <span class="badge" id="ui-snakes">Culebras: 1</span>
+  <div class="bar">
+    <span class="pill" id="t-lvl">Nivel 1</span>
+    <span class="pill" id="t-pts">Puntos: 0 / 300</span>
+    <button id="b-cfg-top">⚙️</button>
   </div>
 
-  <div id="wrap">
-    <canvas id="cv" width="300" height="340"></canvas>
+  <div id="box">
+    <canvas id="c" width="300" height="340"></canvas>
 
-    <div class="panel show" id="panel-start">
-      <div style="font-size:11px;font-weight:800;color:#0284c7;">EDICIÓN ARCADE</div>
+    <div class="layer on" id="m-start">
       <h2 style="margin:0;">SNAKE SPLIT</h2>
-      <div class="badge" id="ui-best">Récord: 0 pts · Nivel 1</div>
-      <div class="row">
-        <button class="primary" id="btn-play">▶ Jugar</button>
-        <button id="btn-cfg">⚙️ Ajustes</button>
+      <div class="pill" id="t-rec">Récord: 0 pts · Nivel 1</div>
+      <div style="display:flex;gap:8px;">
+        <button class="main" id="b-play">▶ Jugar</button>
+        <button id="b-cfg">⚙️ Ajustes</button>
       </div>
     </div>
 
-    <div class="panel" id="panel-pause">
-      <h3 style="margin:0;">Pausa</h3>
-      <p style="margin:0;font-size:13px;" id="ui-pause-info">Nivel 1 · 0 / 300 pts</p>
-      <div class="row">
-        <button class="primary" id="btn-resume">▶ Continuar</button>
-        <button id="btn-restart">↻ Reiniciar</button>
+    <div class="layer" id="m-cfg">
+      <h3 style="margin:0;">Configuración</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+        <button id="o-diff">Dificultad: Estándar</button>
+        <button id="o-theme">Pantalla: Clara</button>
+        <button id="o-snd">Sonido: Sí</button>
       </div>
-    </div>
-
-    <div class="panel" id="panel-cfg">
-      <h3 style="margin:0;">Ajustes</h3>
-      <div class="row">
-        <button id="cfg-diff">Dificultad: Estándar</button>
-        <button id="cfg-theme">Pantalla: Clara</button>
-        <button id="cfg-snd">Sonido: Sí</button>
-      </div>
-      <button class="primary" id="btn-cfg-done">Listo</button>
+      <button class="main" id="b-done">Listo</button>
     </div>
   </div>
 
-  <div class="controls">
-    <button id="btn-l">◀ Izq</button>
-    <button class="primary" id="btn-s">✂ Dividir</button>
-    <button id="btn-r">Der ▶</button>
+  <div class="pads">
+    <button id="b-left">◀ Izq</button>
+    <button class="main" id="b-split">✂ Dividir</button>
+    <button id="b-right">Der ▶</button>
   </div>
 
   <script>
-    const cv = document.getElementById("cv");
-    const ctx = cv.getContext("2d");
-    const W = cv.width, H = cv.height;
+    const c = document.getElementById("c");
+    const ctx = c.getContext("2d");
+    const W = 300, H = 340;
 
-    const panelStart = document.getElementById("panel-start");
-    const panelPause = document.getElementById("panel-pause");
-    const panelCfg = document.getElementById("panel-cfg");
-    const uiLvl = document.getElementById("ui-lvl");
-    const uiPts = document.getElementById("ui-pts");
-    const uiSnakes = document.getElementById("ui-snakes");
-    const uiBest = document.getElementById("ui-best");
-    const uiPauseInfo = document.getElementById("ui-pause-info");
+    const mStart = document.getElementById("m-start");
+    const mCfg = document.getElementById("m-cfg");
+    const tLvl = document.getElementById("t-lvl");
+    const tPts = document.getElementById("t-pts");
+    const tRec = document.getElementById("t-rec");
 
     const diffs = [
-      { name: "Tranquila", spd: 50, skullBonus: -1, moveSpd: 26 },
-      { name: "Estándar", spd: 64, skullBonus: 0, moveSpd: 36 },
-      { name: "Extrema", spd: 82, skullBonus: 1, moveSpd: 52 }
+      { label: "Tranquila", spd: 50, skulls: 0, move: 25 },
+      { label: "Estándar", spd: 65, skulls: 1, move: 36 },
+      { label: "Extrema", spd: 82, skulls: 2, move: 52 }
     ];
-    let diffIdx = 1;
-    let soundOn = true;
+    let dIdx = 1;
+    let snd = true;
+    let best = Number(localStorage.getItem("ss_rec") || 0);
+    let bestLvl = Number(localStorage.getItem("ss_lvl") || 1);
 
-    let bestScore = Number(localStorage.getItem("ss_best_score") || 0);
-    let bestLevel = Number(localStorage.getItem("ss_best_level") || 1);
-
-    let mode = "menu"; // menu | play | pause | cfg | over
-    let level = 1, pts = 0, totalPts = 0;
+    let state = "menu";
+    let lvl = 1, pts = 0, tot = 0;
     let snakes = [];
     let walls = [];
     let skulls = [];
-    let items = [];
+    let food = { x: 150, y: 120 };
     let turn = 0;
-    let lastT = 0;
-    let ac = null;
+    let prevT = 0;
+    let audio = null;
 
-    function refreshRecordText() {
-      uiBest.textContent = "Récord: " + bestScore + " pts · Nivel " + bestLevel;
+    function showRec() {
+      tRec.textContent = "Récord: " + best + " pts · Nivel " + bestLvl;
     }
-    refreshRecordText();
+    showRec();
 
-    function saveRecord() {
-      if (totalPts > bestScore) bestScore = totalPts;
-      if (level > bestLevel) bestLevel = level;
-      localStorage.setItem("ss_best_score", String(bestScore));
-      localStorage.setItem("ss_best_level", String(bestLevel));
-      refreshRecordText();
+    function saveRec() {
+      if (tot > best) best = tot;
+      if (lvl > bestLvl) bestLvl = lvl;
+      localStorage.setItem("ss_rec", String(best));
+      localStorage.setItem("ss_lvl", String(bestLvl));
+      showRec();
     }
 
-    function tone(freq, dur, delay = 0, type = "sine", endFreq = null) {
-      if (!soundOn) return;
+    function playFx(f, d = 0.09, type = "sine", f2 = null) {
+      if (!snd) return;
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        if (!ac) ac = new AudioCtx();
-        if (ac.state === "suspended") ac.resume();
-        const t0 = ac.currentTime + delay;
-        const osc = ac.createOscillator();
-        const gain = ac.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, t0);
-        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, t0 + dur);
-        gain.gain.setValueAtTime(0.001, t0);
-        gain.gain.linearRampToValueAtTime(0.08, t0 + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-        osc.connect(gain);
-        gain.connect(ac.destination);
-        osc.start(t0);
-        osc.stop(t0 + dur + 0.02);
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!audio) audio = new Ctx();
+        if (audio.state === "suspended") audio.resume();
+        const t = audio.currentTime;
+        const o = audio.createOscillator();
+        const g = audio.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(f, t);
+        if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+        g.gain.setValueAtTime(0.07, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + d);
+        o.connect(g);
+        g.connect(audio.destination);
+        o.start(t);
+        o.stop(t + d + 0.02);
       } catch (_) {}
     }
 
-    const sfx = {
-      start() { tone(440, 0.1, 0, "triangle", 587); tone(587, 0.14, 0.08, "sine"); },
-      eat(star) {
-        if (star) { tone(587, 0.09, 0, "sine"); tone(880, 0.15, 0.07, "triangle"); }
-        else { tone(520, 0.08, 0, "sine", 680); }
-      },
-      split() { tone(360, 0.11, 0, "triangle", 660); },
-      lvlUp() { tone(523, 0.1, 0, "triangle"); tone(659, 0.1, 0.09, "triangle"); tone(784, 0.18, 0.18, "sine"); },
-      crash() { tone(210, 0.22, 0, "sawtooth", 70); }
-    };
-
-    function makeSnake(x, y, ang, len, hue, isPlayer) {
+    function makeSnake(x, y, ang, n, hue, player) {
       const segs = [];
-      for (let i = 0; i < len; i++) {
+      for (let i = 0; i < n; i++) {
         segs.push({ x: x - Math.cos(ang) * i * 5, y: y - Math.sin(ang) * i * 5 });
       }
-      return { segs, ang, hue, isPlayer, r: 6.5, aiTimer: 0.4, aiDir: 1 };
+      return { segs, ang, hue, player, r: 6.5, aiT: 0.4, aiD: 1 };
     }
 
-    function hitWall(x, y, r) {
+    function hitW(x, y, r) {
       for (const w of walls) {
-        const cx = Math.max(w.x, Math.min(x, w.x + w.w));
-        const cy = Math.max(w.y, Math.min(y, w.y + w.h));
-        if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) return true;
+        const nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        const ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return true;
       }
       return false;
     }
 
-    function buildWalls(lvl) {
-      walls = [];
-      if (lvl === 1) return;
-      if (lvl % 2 === 0) {
-        walls.push({ x: 36, y: 120, w: 72, h: 12 });
-        walls.push({ x: W - 108, y: 205, w: 72, h: 12 });
-      } else {
-        walls.push({ x: 40, y: 95, w: 66, h: 12 });
-        walls.push({ x: W / 2 - 35, y: 165, w: 70, h: 12 });
-        walls.push({ x: W - 106, y: 235, w: 66, h: 12 });
-      }
-    }
-
-    function safePos(x, y, sweep = 0) {
-      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
-      for (let s = -1; s <= 1; s++) {
-        if (hitWall(x, y + s * sweep, 14)) return false;
-      }
-      for (const sk of skulls) {
-        if (Math.hypot(x - sk.x, y - sk.y) < 34) return false;
-      }
-      return true;
-    }
-
-    function spawnSkulls(lvl) {
-      skulls = [];
-      const cfg = diffs[diffIdx];
-      const base = lvl === 1 ? 1 : Math.min(5, lvl + 1);
-      const count = Math.max(0, base + cfg.skullBonus);
-      const moving = lvl >= 4;
-      const sweep = moving ? 38 : 0;
-
-      let tries = 0;
-      while (skulls.length < count && tries < 150) {
-        tries++;
-        const x = 32 + Math.random() * (W - 64);
-        const y = 44 + sweep + Math.random() * Math.max(20, H - 88 - sweep * 2);
-        if (safePos(x, y, sweep)) {
-          skulls.push({
-            x, y,
-            minY: Math.max(22, y - sweep),
-            maxY: Math.min(H - 22, y + sweep),
-            dir: Math.random() < 0.5 ? -1 : 1,
-            moving,
-            r: 8.5
-          });
-        }
-      }
-    }
-
-    function spawnItem() {
-      const roll = Math.random();
-      const kind = roll < 0.6 ? "berry" : (roll < 0.88 ? "citrus" : "star");
-      let x = W / 2, y = H * 0.35;
-      for (let i = 0; i < 50; i++) {
-        const tx = 24 + Math.random() * (W - 48);
-        const ty = 24 + Math.random() * (H - 48);
-        if (safePos(tx, ty, 0)) { x = tx; y = ty; break; }
-      }
-      const ptsVal = kind === "star" ? 40 : (kind === "citrus" ? 20 : 10);
-      const grow = kind === "star" ? 3 : 2;
-      items.push({ x, y, kind, ptsVal, grow, r: kind === "star" ? 6.5 : 5.5 });
-    }
-
-    function updateHud() {
-      uiLvl.textContent = "Nivel " + level;
-      uiPts.textContent = "Puntos: " + pts + " / 300";
-      uiSnakes.textContent = "Culebras: " + snakes.length;
-    }
-
-    function setupLevel(lvl, resetTotal) {
-      level = lvl;
+    function initLvl(n, resetTot) {
+      lvl = n;
       pts = 0;
-      if (resetTotal) totalPts = 0;
+      if (resetTot) tot = 0;
       turn = 0;
       snakes = [makeSnake(W / 2, H * 0.8, -Math.PI / 2, 12, 152, true)];
-      buildWalls(level);
-      spawnSkulls(level);
-      items = [];
-      for (let i = 0; i < 6; i++) spawnItem();
-      saveRecord();
-      updateHud();
+      walls = lvl > 1 ? [
+        { x: 38, y: 120, w: 68, h: 12 },
+        { x: W - 106, y: 205, w: 68, h: 12 }
+      ] : [];
+      skulls = [];
+      const cnt = diffs[dIdx].skulls + Math.min(3, lvl - 1);
+      for (let i = 0; i < cnt; i++) {
+        const sx = 45 + ((i * 80) % (W - 90));
+        const sy = 75 + i * 55;
+        skulls.push({ x: sx, y: sy, minY: Math.max(24, sy - 35), maxY: Math.min(H - 24, sy + 35), dir: i % 2 ? -1 : 1, mov: lvl >= 4, r: 8.5 });
+      }
+      food.x = 30 + Math.random() * (W - 60);
+      food.y = 30 + Math.random() * (H - 60);
+      saveRec();
+      tLvl.textContent = "Nivel " + lvl;
+      tPts.textContent = "Puntos: " + pts + " / 300";
     }
 
-    function hideAllPanels() {
-      panelStart.classList.remove("show");
-      panelPause.classList.remove("show");
-      panelCfg.classList.remove("show");
+    function goPlay() {
+      mStart.classList.remove("on");
+      mCfg.classList.remove("on");
+      state = "play";
+      playFx(440, 0.1, "triangle", 660);
+      initLvl(1, true);
     }
 
-    function startPlay() {
-      hideAllPanels();
-      mode = "play";
-      sfx.start();
-      setupLevel(1, true);
+    function goCfg() {
+      mStart.classList.remove("on");
+      mCfg.classList.add("on");
+      state = "cfg";
+      playFx(620, 0.05);
     }
 
-    function openCfg() {
-      hideAllPanels();
-      mode = "cfg";
-      panelCfg.classList.add("show");
-    }
-
-    document.getElementById("btn-play").addEventListener("click", startPlay);
-    document.getElementById("btn-cfg").addEventListener("click", openCfg);
-    document.getElementById("btn-top-cfg").addEventListener("click", () => {
-      if (mode === "play" || mode === "menu" || mode === "pause") openCfg();
-    });
-
-    document.getElementById("btn-cfg-done").addEventListener("click", () => {
-      panelCfg.classList.remove("show");
-      if (totalPts === 0 && pts === 0 && snakes.length === 1 && snakes[0].segs[0].y > H * 0.75) {
-        mode = "menu";
-        panelStart.classList.add("show");
+    document.getElementById("b-play").onclick = goPlay;
+    document.getElementById("b-cfg").onclick = goCfg;
+    document.getElementById("b-cfg-top").onclick = goCfg;
+    document.getElementById("b-done").onclick = () => {
+      mCfg.classList.remove("on");
+      if (tot === 0 && pts === 0) {
+        mStart.classList.add("on");
+        state = "menu";
       } else {
-        mode = "play";
+        state = "play";
       }
-    });
+    };
 
-    document.getElementById("btn-pause").addEventListener("click", () => {
-      if (mode === "play") {
-        mode = "pause";
-        uiPauseInfo.textContent = "Nivel " + level + " · " + pts + " / 300 pts";
-        panelPause.classList.add("show");
-      } else if (mode === "pause") {
-        panelPause.classList.remove("show");
-        mode = "play";
-      }
-    });
-
-    document.getElementById("btn-resume").addEventListener("click", () => {
-      panelPause.classList.remove("show");
-      mode = "play";
-    });
-
-    document.getElementById("btn-restart").addEventListener("click", startPlay);
-
-    document.getElementById("cfg-diff").addEventListener("click", (e) => {
-      diffIdx = (diffIdx + 1) % diffs.length;
-      e.target.textContent = "Dificultad: " + diffs[diffIdx].name;
-      spawnSkulls(level);
-    });
-
-    document.getElementById("cfg-theme").addEventListener("click", (e) => {
+    document.getElementById("o-diff").onclick = (e) => {
+      dIdx = (dIdx + 1) % diffs.length;
+      e.target.textContent = "Dificultad: " + diffs[dIdx].label;
+      initLvl(lvl, false);
+    };
+    document.getElementById("o-theme").onclick = (e) => {
       const dark = document.body.classList.toggle("dark");
       e.target.textContent = "Pantalla: " + (dark ? "Oscura" : "Clara");
-    });
+    };
+    document.getElementById("o-snd").onclick = (e) => {
+      snd = !snd;
+      e.target.textContent = "Sonido: " + (snd ? "Sí" : "No");
+      if (snd) playFx(740, 0.07);
+    };
 
-    document.getElementById("cfg-snd").addEventListener("click", (e) => {
-      soundOn = !soundOn;
-      e.target.textContent = "Sonido: " + (soundOn ? "Sí" : "No");
-      if (soundOn) sfx.eat(false);
-    });
-
-    document.getElementById("btn-l").addEventListener("pointerdown", () => (turn = -1));
-    document.getElementById("btn-l").addEventListener("pointerup", () => (turn = 0));
-    document.getElementById("btn-l").addEventListener("pointerleave", () => (turn = 0));
-
-    document.getElementById("btn-r").addEventListener("pointerdown", () => (turn = 1));
-    document.getElementById("btn-r").addEventListener("pointerup", () => (turn = 0));
-    document.getElementById("btn-r").addEventListener("pointerleave", () => (turn = 0));
-
-    document.getElementById("btn-s").addEventListener("click", () => {
-      if (mode === "over") { startPlay(); return; }
-      if (mode !== "play") return;
+    document.getElementById("b-left").onpointerdown = () => (turn = -1);
+    document.getElementById("b-left").onpointerup = () => (turn = 0);
+    document.getElementById("b-right").onpointerdown = () => (turn = 1);
+    document.getElementById("b-right").onpointerup = () => (turn = 0);
+    document.getElementById("b-split").onclick = () => {
+      if (state === "over") { goPlay(); return; }
+      if (state !== "play") return;
       const next = [];
-      let splitHappened = false;
+      let splitOk = false;
       for (const s of snakes) {
         if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
           const half = Math.floor(s.segs.length / 2);
-          const rightPart = s.segs.splice(half);
+          const part = s.segs.splice(half);
           next.push(s);
-          next.push(makeSnake(rightPart[0].x, rightPart[0].y, s.ang + 0.7, rightPart.length, (s.hue + 55) % 360, false));
-          splitHappened = true;
-        } else {
-          next.push(s);
-        }
+          next.push(makeSnake(part[0].x, part[0].y, s.ang + 0.7, part.length, (s.hue + 60) % 360, false));
+          splitOk = true;
+        } else next.push(s);
       }
-      if (splitHappened) { snakes = next; sfx.split(); updateHud(); }
-    });
+      if (splitOk) { snakes = next; playFx(360, 0.11, "triangle", 720); }
+    };
 
-    cv.addEventListener("pointerdown", () => {
-      if (mode === "over") startPlay();
-    });
+    c.onclick = () => { if (state === "over") goPlay(); };
 
-    function normAngle(a) {
-      while (a > Math.PI) a -= Math.PI * 2;
-      while (a < -Math.PI) a += Math.PI * 2;
-      return a;
-    }
-
-    function update(dt) {
-      if (mode !== "play") return;
-      const cfg = diffs[diffIdx];
-      const spd = cfg.spd + (level - 1) * 4;
+    function step(dt) {
+      if (state !== "play") return;
+      const cfg = diffs[dIdx];
+      const spd = cfg.spd + (lvl - 1) * 4;
 
       for (const sk of skulls) {
-        if (sk.moving) {
-          sk.y += sk.dir * cfg.moveSpd * dt;
+        if (sk.mov) {
+          sk.y += sk.dir * cfg.move * dt;
           if (sk.y <= sk.minY) { sk.y = sk.minY; sk.dir = 1; }
           if (sk.y >= sk.maxY) { sk.y = sk.maxY; sk.dir = -1; }
         }
@@ -451,29 +313,21 @@
       const alive = [];
       for (const s of snakes) {
         let dir = turn;
-        if (!s.isPlayer) {
-          s.aiTimer -= dt;
-          if (s.aiTimer <= 0) { s.aiTimer = 0.4 + Math.random() * 0.5; s.aiDir = Math.random() < 0.5 ? -1 : 1; }
-          dir = s.aiDir;
-          const h = s.segs[0];
-          if (h.x < 28 || h.x > W - 28 || h.y < 28 || h.y > H - 28 || hitWall(h.x + Math.cos(s.ang) * 18, h.y + Math.sin(s.ang) * 18, 10)) {
-            dir = 1;
-          }
+        if (!s.player) {
+          s.aiT -= dt;
+          if (s.aiT <= 0) { s.aiT = 0.45; s.aiD = Math.random() < 0.5 ? -1 : 1; }
+          dir = s.aiD;
         }
-
-        s.ang = normAngle(s.ang + dir * 3.0 * dt);
+        s.ang += dir * 3.0 * dt;
         const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
         const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
 
-        const badBorder = nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r;
-        const badWall = hitWall(nx, ny, s.r - 0.5);
-        const badSkull = skulls.some(sk => Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1.5);
-
-        if (badBorder || badWall || badSkull) {
-          if (s.isPlayer) {
-            mode = "over";
-            saveRecord();
-            sfx.crash();
+        const hitSk = skulls.some(sk => Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1);
+        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitW(nx, ny, s.r) || hitSk) {
+          if (s.player) {
+            state = "over";
+            saveRec();
+            playFx(200, 0.22, "sawtooth", 65);
             return;
           }
           continue;
@@ -482,51 +336,77 @@
         s.segs.unshift({ x: nx, y: ny });
         s.segs.pop();
 
-        for (let i = items.length - 1; i >= 0; i--) {
-          const it = items[i];
-          if (Math.hypot(nx - it.x, ny - it.y) < s.r + it.r + 2) {
-            items.splice(i, 1);
-            spawnItem();
-            pts += it.ptsVal;
-            totalPts += it.ptsVal;
-            saveRecord();
-            sfx.eat(it.kind === "star");
-            const tail = s.segs[s.segs.length - 1];
-            for (let g = 0; g < it.grow; g++) s.segs.push({ ...tail });
-            if (pts >= 300) {
-              sfx.lvlUp();
-              setupLevel(level + 1, false);
-              return;
-            }
-            updateHud();
+        if (Math.hypot(nx - food.x, ny - food.y) < s.r + 7) {
+          pts += 10;
+          tot += 10;
+          saveRec();
+          playFx(587, 0.08, "sine", 880);
+          const tail = s.segs[s.segs.length - 1];
+          s.segs.push({ ...tail }, { ...tail });
+          food.x = 28 + Math.random() * (W - 56);
+          food.y = 28 + Math.random() * (H - 56);
+          if (pts >= 300) {
+            playFx(784, 0.16, "triangle");
+            initLvl(lvl + 1, false);
+            return;
           }
+          tPts.textContent = "Puntos: " + pts + " / 300";
         }
         alive.push(s);
       }
-
-      if (alive.length !== snakes.length) { snakes = alive; updateHud(); }
+      snakes = alive;
     }
 
-    function draw() {
+    function render() {
       ctx.clearRect(0, 0, W, H);
       const dark = document.body.classList.contains("dark");
 
       ctx.fillStyle = dark ? "#475569" : "#64748b";
-      for (const w of walls) {
-        ctx.fillRect(w.x, w.y, w.w, w.h);
-      }
+      for (const w of walls) ctx.fillRect(w.x, w.y, w.w, w.h);
 
-      for (const it of items) {
-        ctx.fillStyle = it.kind === "star" ? "#f59e0b" : (it.kind === "citrus" ? "#fb923c" : "#ef4444");
-        ctx.beginPath();
-        ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.fillStyle = "#f59e0b";
+      ctx.beginPath();
+      ctx.arc(food.x, food.y, 6, 0, Math.PI * 2);
+      ctx.fill();
 
       for (const sk of skulls) {
-        ctx.fillStyle = sk.moving ? "#dc2626" : "#ef4444";
+        ctx.fillStyle = "#ef4444";
         ctx.beginPath();
         ctx.arc(sk.x, sk.y, sk.r, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(sk.
+      }
+
+      for (const s of snakes) {
+        for (let i = 0; i < s.segs.length; i++) {
+          ctx.fillStyle = `hsl(${s.hue}, 82%, ${i === 0 ? 40 : 52}%)`;
+          ctx.beginPath();
+          ctx.arc(s.segs[i].x, s.segs[i].y, s.r * (1 - i / (s.segs.length * 2.4)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (state === "over") {
+        ctx.fillStyle = dark ? "rgba(14,17,22,0.85)" : "rgba(241,245,249,0.88)";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = dark ? "#f8fafc" : "#0f172a";
+        ctx.font = "bold 19px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 16);
+      }
+    }
+
+    function loop(t) {
+      const dt = Math.min((t - prevT) / 1000 || 0.016, 0.05);
+      prevT = t;
+      step(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    initLvl(1, true);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
