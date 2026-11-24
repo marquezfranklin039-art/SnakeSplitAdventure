@@ -7,8 +7,8 @@
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
     body {
-      background-color: #0e1116;
-      color: #ffffff;
+      background-color: #eef2f6;
+      color: #0f172a;
       font-family: system-ui, -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
@@ -31,10 +31,12 @@
       font-size: 15px;
     }
     .badge {
-      background: #1b222c;
-      border: 1px solid #2e3948;
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
       padding: 6px 12px;
       border-radius: 999px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
     }
     #game-wrap {
       position: relative;
@@ -43,9 +45,9 @@
       aspect-ratio: 300 / 340;
       border-radius: 16px;
       overflow: hidden;
-      border: 2px solid #2e3948;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
-      background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
+      border: 2px solid #94a3b8;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
     }
     canvas {
       width: 100%;
@@ -61,25 +63,27 @@
       gap: 8px;
     }
     button {
-      background: #1b222c;
-      color: #fff;
-      border: 1px solid #324052;
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
       border-radius: 12px;
       padding: 12px 8px;
       font-size: 14px;
       font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
     }
     button:active {
-      background: #2b3a4e;
+      background: #e2e8f0;
       transform: scale(0.98);
     }
     .split-btn {
-      background: #1f6feb;
-      border-color: #388bfd;
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0369a1;
     }
     .split-btn:active {
-      background: #1158c7;
+      background: #0369a1;
     }
   </style>
 </head>
@@ -112,7 +116,7 @@
     let lastTime = 0;
     let touchStartX = null;
 
-    function createSnake(x, y, angle, length = 10, hue = 152) {
+    function createSnake(x, y, angle, length = 12, hue = 152, isPlayer = true) {
       const segments = [];
       for (let i = 0; i < length; i++) {
         segments.push({
@@ -120,10 +124,19 @@
           y: y - Math.sin(angle) * i * 5
         });
       }
-      return { segments, angle, turnDir: 0, hue, radius: 6.5 };
+      return {
+        segments,
+        angle,
+        turnDir: 0,
+        hue,
+        radius: 6.5,
+        isPlayer,
+        aiTimer: 0.4 + Math.random() * 0.7,
+        aiTurn: (Math.random() < 0.5 ? -1 : 1)
+      };
     }
 
-    let snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152)];
+    let snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152, true)];
     let foods = [];
 
     function spawnFood() {
@@ -140,7 +153,7 @@
     function resetGame() {
       score = 0;
       gameOver = false;
-      snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152)];
+      snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152, true)];
       foods = [];
       for (let i = 0; i < 6; i++) spawnFood();
       updateHud();
@@ -149,6 +162,54 @@
     function updateHud() {
       scoreUi.textContent = `Puntos: ${score}`;
       snakesUi.textContent = `Culebras: ${snakes.length}`;
+    }
+
+    function normalizeAngle(a) {
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      return a;
+    }
+
+    function chooseAutonomousDirection(s) {
+      const head = s.segments[0];
+      const margin = 34;
+
+      // Evitar bordes con prioridad
+      if (head.x < margin) {
+        const diff = normalizeAngle(0 - s.angle);
+        return diff >= 0 ? 1 : -1;
+      }
+      if (head.x > W - margin) {
+        const diff = normalizeAngle(Math.PI - s.angle);
+        return diff >= 0 ? 1 : -1;
+      }
+      if (head.y < margin) {
+        const diff = normalizeAngle(Math.PI / 2 - s.angle);
+        return diff >= 0 ? 1 : -1;
+      }
+      if (head.y > H - margin) {
+        const diff = normalizeAngle(-Math.PI / 2 - s.angle);
+        return diff >= 0 ? 1 : -1;
+      }
+
+      // Buscar comida cercana si existe
+      if (foods.length > 0) {
+        let nearest = foods[0];
+        let bestDist = Math.hypot(head.x - nearest.x, head.y - nearest.y);
+        for (let i = 1; i < foods.length; i++) {
+          const d = Math.hypot(head.x - foods[i].x, head.y - foods[i].y);
+          if (d < bestDist) {
+            bestDist = d;
+            nearest = foods[i];
+          }
+        }
+        const targetAngle = Math.atan2(nearest.y - head.y, nearest.x - head.x);
+        const diff = normalizeAngle(targetAngle - s.angle);
+        if (Math.abs(diff) < 0.14) return 0;
+        return diff > 0 ? 1 : -1;
+      }
+
+      return s.aiTurn;
     }
 
     function splitSnakes() {
@@ -162,15 +223,17 @@
           const mid = Math.floor(s.segments.length / 2);
           const secondPart = s.segments.splice(mid);
           s.segments.push({ ...s.segments[s.segments.length - 1] });
-          const headB = secondPart[0];
-          const angleB = s.angle + 0.65;
+          const angleB = normalizeAngle(s.angle + (s.isPlayer ? 0.85 : 0.65));
           nextSnakes.push(s);
           nextSnakes.push({
             segments: secondPart,
             angle: angleB,
-            turnDir: -s.turnDir,
-            hue: (s.hue + 45) % 360,
-            radius: s.radius
+            turnDir: 0,
+            hue: (s.hue + 55) % 360,
+            radius: s.radius,
+            isPlayer: false,
+            aiTimer: 0.45 + Math.random() * 0.6,
+            aiTurn: Math.random() < 0.5 ? -1 : 1
           });
         } else {
           nextSnakes.push(s);
@@ -180,19 +243,21 @@
       updateHud();
     }
 
-    function setTurn(dir) {
+    function setPlayerTurn(dir) {
       for (const s of snakes) {
-        s.turnDir = dir;
+        if (s.isPlayer) {
+          s.turnDir = dir;
+        }
       }
     }
 
-    document.getElementById("btn-left").addEventListener("pointerdown", () => setTurn(-1));
-    document.getElementById("btn-left").addEventListener("pointerup", () => setTurn(0));
-    document.getElementById("btn-left").addEventListener("pointerleave", () => setTurn(0));
+    document.getElementById("btn-left").addEventListener("pointerdown", () => setPlayerTurn(-1));
+    document.getElementById("btn-left").addEventListener("pointerup", () => setPlayerTurn(0));
+    document.getElementById("btn-left").addEventListener("pointerleave", () => setPlayerTurn(0));
 
-    document.getElementById("btn-right").addEventListener("pointerdown", () => setTurn(1));
-    document.getElementById("btn-right").addEventListener("pointerup", () => setTurn(0));
-    document.getElementById("btn-right").addEventListener("pointerleave", () => setTurn(0));
+    document.getElementById("btn-right").addEventListener("pointerdown", () => setPlayerTurn(1));
+    document.getElementById("btn-right").addEventListener("pointerup", () => setPlayerTurn(0));
+    document.getElementById("btn-right").addEventListener("pointerleave", () => setPlayerTurn(0));
 
     document.getElementById("btn-split").addEventListener("click", splitSnakes);
 
@@ -207,39 +272,55 @@
     canvas.addEventListener("pointermove", (e) => {
       if (touchStartX === null) return;
       const dx = e.clientX - touchStartX;
-      if (dx < -14) setTurn(-1);
-      else if (dx > 14) setTurn(1);
+      if (dx < -14) setPlayerTurn(-1);
+      else if (dx > 14) setPlayerTurn(1);
     });
 
     canvas.addEventListener("pointerup", () => {
       touchStartX = null;
-      setTurn(0);
+      setPlayerTurn(0);
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft" || e.key === "a") setTurn(-1);
-      if (e.key === "ArrowRight" || e.key === "d") setTurn(1);
+      if (e.key === "ArrowLeft" || e.key === "a") setPlayerTurn(-1);
+      if (e.key === "ArrowRight" || e.key === "d") setPlayerTurn(1);
       if (e.key === " " || e.key === "Enter") splitSnakes();
     });
 
     window.addEventListener("keyup", (e) => {
-      if (["ArrowLeft", "a", "ArrowRight", "d"].includes(e.key)) setTurn(0);
+      if (["ArrowLeft", "a", "ArrowRight", "d"].includes(e.key)) setPlayerTurn(0);
     });
 
     function update(dt) {
       if (gameOver) return;
-      const speed = 95; // px por segundo
-      const turnSpeed = 3.6;
+      const speed = 62; // Velocidad más suave y controlable
+      const turnSpeed = 3.0;
+      const survivingSnakes = [];
 
       for (const s of snakes) {
-        s.angle += s.turnDir * turnSpeed * dt;
+        if (!s.isPlayer) {
+          s.aiTimer -= dt;
+          if (s.aiTimer <= 0) {
+            s.aiTimer = 0.35 + Math.random() * 0.65;
+            s.aiTurn = chooseAutonomousDirection(s);
+          }
+          s.turnDir = chooseAutonomousDirection(s);
+        }
+
+        s.angle = normalizeAngle(s.angle + s.turnDir * turnSpeed * dt);
         const head = s.segments[0];
         const nx = head.x + Math.cos(s.angle) * speed * dt;
         const ny = head.y + Math.sin(s.angle) * speed * dt;
 
-        if (nx < s.radius || nx > W - s.radius || ny < s.radius || ny > H - s.radius) {
-          gameOver = true;
-          return;
+        const hitWall = nx < s.radius || nx > W - s.radius || ny < s.radius || ny > H - s.radius;
+        if (hitWall) {
+          if (s.isPlayer) {
+            gameOver = true;
+            return;
+          } else {
+            // La culebra dividida desaparece sola sin terminar tu partida
+            continue;
+          }
         }
 
         s.segments.unshift({ x: nx, y: ny });
@@ -257,6 +338,13 @@
             updateHud();
           }
         }
+
+        survivingSnakes.push(s);
+      }
+
+      if (survivingSnakes.length !== snakes.length) {
+        snakes = survivingSnakes;
+        updateHud();
       }
 
       for (const f of foods) {
@@ -267,19 +355,19 @@
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      // Comida orgánica brillante
+      // Comida brillante sobre fondo claro
       for (const f of foods) {
-        const glowRadius = f.r + Math.sin(f.pulse) * 1.6;
+        const glowRadius = f.r + Math.sin(f.pulse) * 1.5;
         const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, glowRadius * 2.2);
-        grad.addColorStop(0, "#ffd166");
-        grad.addColorStop(0.6, "rgba(255, 209, 102, 0.35)");
-        grad.addColorStop(1, "rgba(255, 209, 102, 0)");
+        grad.addColorStop(0, "#f59e0b");
+        grad.addColorStop(0.6, "rgba(245, 158, 11, 0.35)");
+        grad.addColorStop(1, "rgba(245, 158, 11, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(f.x, f.y, glowRadius * 2.2, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "#ffe66d";
+        ctx.fillStyle = "#fbbf24";
         ctx.beginPath();
         ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
         ctx.fill();
@@ -300,25 +388,34 @@
             seg.y,
             r
           );
-          bodyGrad.addColorStop(0, `hsla(${s.hue}, 90%, 72%, 1)`);
-          bodyGrad.addColorStop(1, `hsla(${s.hue}, 78%, 34%, 1)`);
+          bodyGrad.addColorStop(0, `hsla(${s.hue}, 88%, 62%, 1)`);
+          bodyGrad.addColorStop(1, `hsla(${s.hue}, 78%, 32%, 1)`);
 
           ctx.fillStyle = bodyGrad;
           ctx.beginPath();
           ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
           ctx.fill();
         }
+
+        // Pequeño indicador en la cabeza de la culebra que tú manejas
+        if (s.isPlayer && s.segments.length > 0) {
+          const h = s.segments[0];
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(h.x, h.y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       if (gameOver) {
-        ctx.fillStyle = "rgba(10, 14, 20, 0.78)";
+        ctx.fillStyle = "rgba(241, 245, 249, 0.88)";
         ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#0f172a";
         ctx.font = "bold 22px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
         ctx.font = "14px system-ui, sans-serif";
-        ctx.fillStyle = "#cbd5e1";
+        ctx.fillStyle = "#334155";
         ctx.fillText("Toca aquí o en Dividir para jugar de nuevo", W / 2, H / 2 + 18);
       }
     }
