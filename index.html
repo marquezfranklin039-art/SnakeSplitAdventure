@@ -288,7 +288,7 @@
     <!-- Pantalla de Nivel Superado -->
     <div class="modal-overlay" id="levelup-modal">
       <div class="modal-title" id="levelup-title">¡Nivel 1 Superado!</div>
-      <div class="modal-sub" id="levelup-sub">Alcanzaste los 300 puntos. ¿Listo para el siguiente?</div>
+      <div class="modal-sub" id="levelup-sub">Alcanzaste los 300 puntos. Se suman más calaveras y frutas.</div>
       <div class="modal-actions">
         <button class="ctrl-btn split-btn" id="btn-next-level">Siguiente Nivel ▶</button>
       </div>
@@ -324,20 +324,28 @@
     let levelScore = 0;
     let totalScore = 0;
     let gameOver = false;
+    let deathReason = "¡Chocaste!";
     let isPaused = false;
     let isSettingsOpen = false;
     let isLevelUp = false;
     let lastTime = 0;
     let touchStartX = null;
 
-    // Configuración ajustable por el usuario
     let baseSpeed = 62;
     let vibrationEnabled = true;
+
+    let skulls = [];
+    let items = [];
+    let popups = [];
 
     function buzz(ms) {
       if (vibrationEnabled && navigator.vibrate) {
         navigator.vibrate(ms);
       }
+    }
+
+    function addPopup(x, y, text, color = "#0284c7") {
+      popups.push({ x, y, text, color, life: 0.9 });
     }
 
     function createSnake(x, y, angle, length = 12, hue = 152, isPlayer = true) {
@@ -360,24 +368,82 @@
       };
     }
 
-    let snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152, true)];
-    let foods = [];
+    let snakes = [createSnake(W / 2, H * 0.72, -Math.PI / 2, 12, 152, true)];
 
-    function spawnFood() {
-      foods.push({
-        x: 24 + Math.random() * (W - 48),
-        y: 24 + Math.random() * (H - 48),
-        r: 5.5,
+    function isSafeSpot(x, y, minDist = 28) {
+      // Lejos de la posición inicial de la culebra principal
+      if (Math.hypot(x - W / 2, y - H * 0.72) < 55) return false;
+      for (const sk of skulls) {
+        if (Math.hypot(x - sk.x, y - sk.y) < minDist) return false;
+      }
+      for (const it of items) {
+        if (Math.hypot(x - it.x, y - it.y) < minDist * 0.7) return false;
+      }
+      return true;
+    }
+
+    function spawnSkullsForLevel(lvl) {
+      skulls = [];
+      // Desde nivel 1 o 2: pongamos 1 calavera en nivel 1 como aviso suave, y más a partir del nivel 2
+      const count = lvl === 1 ? 1 : Math.min(7, lvl + 1);
+      let attempts = 0;
+      while (skulls.length < count && attempts < 120) {
+        attempts++;
+        const x = 34 + Math.random() * (W - 68);
+        const y = 34 + Math.random() * (H - 68);
+        if (isSafeSpot(x, y, 36)) {
+          skulls.push({
+            x,
+            y,
+            r: 8.5,
+            bob: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    }
+
+    function spawnItem(forcedType = null) {
+      let type = forcedType;
+      if (!type) {
+        const roll = Math.random();
+        if (roll < 0.55) type = "berry";     // Fruta fresa (+10 pts)
+        else if (roll < 0.85) type = "citrus"; // Fruta cítrica (+20 pts)
+        else type = "reward";                  // Recompensa estrella (+40 pts + 3 segmentos)
+      }
+
+      let x = W / 2;
+      let y = H / 2;
+      for (let i = 0; i < 40; i++) {
+        const tx = 24 + Math.random() * (W - 48);
+        const ty = 24 + Math.random() * (H - 48);
+        if (isSafeSpot(tx, ty, 24)) {
+          x = tx;
+          y = ty;
+          break;
+        }
+      }
+
+      const points = type === "reward" ? 40 : (type === "citrus" ? 20 : 10);
+      const growth = type === "reward" ? 3 : (type === "citrus" ? 2 : 2);
+      const r = type === "reward" ? 6.5 : 5.5;
+
+      items.push({
+        x,
+        y,
+        r,
+        type,
+        points,
+        growth,
         pulse: Math.random() * Math.PI * 2
       });
     }
 
-    function initFoods(count = 6) {
-      foods = [];
-      for (let i = 0; i < count; i++) spawnFood();
+    function initItems(count = 6) {
+      items = [];
+      for (let i = 0; i < count; i++) {
+        spawnItem(i === count - 1 ? "reward" : null);
+      }
     }
-
-    initFoods(6);
 
     function updateHud() {
       levelUi.textContent = `Nivel ${level}`;
@@ -392,12 +458,15 @@
       levelScore = 0;
       if (keepReset) totalScore = 0;
       gameOver = false;
+      deathReason = "¡Chocaste!";
       isLevelUp = false;
       isPaused = false;
+      popups = [];
       pauseModal.classList.remove("active");
       levelupModal.classList.remove("active");
-      snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152, true)];
-      initFoods(6);
+      snakes = [createSnake(W / 2, H * 0.72, -Math.PI / 2, 12, 152, true)];
+      spawnSkullsForLevel(level);
+      initItems(6);
       updateHud();
     }
 
@@ -415,31 +484,31 @@
       const head = s.segments[0];
       const margin = 34;
 
-      if (head.x < margin) {
-        const diff = normalizeAngle(0 - s.angle);
-        return diff >= 0 ? 1 : -1;
-      }
-      if (head.x > W - margin) {
-        const diff = normalizeAngle(Math.PI - s.angle);
-        return diff >= 0 ? 1 : -1;
-      }
-      if (head.y < margin) {
-        const diff = normalizeAngle(Math.PI / 2 - s.angle);
-        return diff >= 0 ? 1 : -1;
-      }
-      if (head.y > H - margin) {
-        const diff = normalizeAngle(-Math.PI / 2 - s.angle);
-        return diff >= 0 ? 1 : -1;
+      // Esquivar calaveras cercanas
+      for (const sk of skulls) {
+        const d = Math.hypot(head.x - sk.x, head.y - sk.y);
+        if (d < 34) {
+          const awayAngle = Math.atan2(head.y - sk.y, head.x - sk.x);
+          const diff = normalizeAngle(awayAngle - s.angle);
+          return diff >= 0 ? 1 : -1;
+        }
       }
 
-      if (foods.length > 0) {
-        let nearest = foods[0];
+      // Evitar bordes
+      if (head.x < margin) return normalizeAngle(0 - s.angle) >= 0 ? 1 : -1;
+      if (head.x > W - margin) return normalizeAngle(Math.PI - s.angle) >= 0 ? 1 : -1;
+      if (head.y < margin) return normalizeAngle(Math.PI / 2 - s.angle) >= 0 ? 1 : -1;
+      if (head.y > H - margin) return normalizeAngle(-Math.PI / 2 - s.angle) >= 0 ? 1 : -1;
+
+      // Buscar fruta o recompensa más cercana
+      if (items.length > 0) {
+        let nearest = items[0];
         let bestDist = Math.hypot(head.x - nearest.x, head.y - nearest.y);
-        for (let i = 1; i < foods.length; i++) {
-          const d = Math.hypot(head.x - foods[i].x, head.y - foods[i].y);
+        for (let i = 1; i < items.length; i++) {
+          const d = Math.hypot(head.x - items[i].x, head.y - items[i].y);
           if (d < bestDist) {
             bestDist = d;
-            nearest = foods[i];
+            nearest = items[i];
           }
         }
         const targetAngle = Math.atan2(nearest.y - head.y, nearest.x - head.x);
@@ -534,7 +603,7 @@
       setupLevel(level + 1, false);
     });
 
-    // Opciones dentro de Configuración
+    // Opciones de Configuración
     document.querySelectorAll("#speed-options .pill-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#speed-options .pill-btn").forEach(b => b.classList.remove("selected"));
@@ -606,15 +675,16 @@
     function triggerLevelUp() {
       isLevelUp = true;
       buzz([40, 50, 60]);
+      const nextLvl = level + 1;
+      const nextSkulls = Math.min(7, nextLvl + 1);
       levelupTitle.textContent = `¡Nivel ${level} Superado!`;
-      levelupSub.textContent = `Llegaste a ${POINTS_PER_LEVEL} puntos (Total: ${totalScore} pts). Siguiente nivel con un poco más de velocidad.`;
+      levelupSub.textContent = `Alcanzaste los ${POINTS_PER_LEVEL} puntos. En el Nivel ${nextLvl} habrá ${nextSkulls} calaveras y más ritmo.`;
       levelupModal.classList.add("active");
     }
 
     function update(dt) {
       if (gameOver || isPaused || isSettingsOpen || isLevelUp) return;
 
-      // Sube ligeramente el ritmo en niveles superiores
       const currentSpeed = baseSpeed + (level - 1) * 5;
       const turnSpeed = 3.0;
       const survivingSnakes = [];
@@ -634,13 +704,36 @@
         const nx = head.x + Math.cos(s.angle) * currentSpeed * dt;
         const ny = head.y + Math.sin(s.angle) * currentSpeed * dt;
 
+        // Choque contra borde
         const hitWall = nx < s.radius || nx > W - s.radius || ny < s.radius || ny > H - s.radius;
         if (hitWall) {
           if (s.isPlayer) {
+            deathReason = "¡Chocaste con el borde!";
             gameOver = true;
             buzz(80);
             return;
           } else {
+            addPopup(head.x, head.y, "×", "#ef4444");
+            continue;
+          }
+        }
+
+        // Choque contra calavera
+        let hitSkull = false;
+        for (const sk of skulls) {
+          if (Math.hypot(nx - sk.x, ny - sk.y) < s.radius + sk.r - 1.5) {
+            hitSkull = true;
+            break;
+          }
+        }
+        if (hitSkull) {
+          if (s.isPlayer) {
+            deathReason = "¡Tocaste una calavera!";
+            gameOver = true;
+            buzz([70, 40, 90]);
+            return;
+          } else {
+            addPopup(head.x, head.y, "💀", "#ef4444");
             continue;
           }
         }
@@ -648,17 +741,27 @@
         s.segments.unshift({ x: nx, y: ny });
         s.segments.pop();
 
-        for (let i = foods.length - 1; i >= 0; i--) {
-          const f = foods[i];
-          const dist = Math.hypot(nx - f.x, ny - f.y);
-          if (dist < s.radius + f.r + 2) {
-            foods.splice(i, 1);
-            spawnFood();
-            levelScore += 10;
-            totalScore += 10;
-            buzz(15);
+        // Comer frutas o recompensas
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i];
+          const dist = Math.hypot(nx - it.x, ny - it.y);
+          if (dist < s.radius + it.r + 2) {
+            items.splice(i, 1);
+            spawnItem();
+            levelScore += it.points;
+            totalScore += it.points;
+            buzz(it.type === "reward" ? [25, 25, 35] : 15);
+            addPopup(
+              it.x,
+              it.y - 6,
+              `+${it.points}`,
+              it.type === "reward" ? "#d97706" : "#16a34a"
+            );
+
             const tail = s.segments[s.segments.length - 1];
-            s.segments.push({ ...tail }, { ...tail });
+            for (let g = 0; g < it.growth; g++) {
+              s.segments.push({ ...tail });
+            }
             updateHud();
 
             if (levelScore >= POINTS_PER_LEVEL) {
@@ -676,30 +779,114 @@
         updateHud();
       }
 
-      for (const f of foods) {
-        f.pulse += dt * 5;
+      for (const it of items) it.pulse += dt * 5;
+      for (const sk of skulls) sk.bob += dt * 3;
+      for (let i = popups.length - 1; i >= 0; i--) {
+        popups[i].y -= 22 * dt;
+        popups[i].life -= dt;
+        if (popups[i].life <= 0) popups.splice(i, 1);
+      }
+    }
+
+    function drawSkull(sk) {
+      const yOff = Math.sin(sk.bob) * 1.4;
+      const x = sk.x;
+      const y = sk.y + yOff;
+      const r = sk.r;
+
+      // Sombra/alerta suave
+      ctx.fillStyle = "rgba(239, 68, 68, 0.16)";
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cráneo
+      ctx.fillStyle = "#f8fafc";
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(x, y - 1.5, r * 0.78, Math.PI * 0.85, Math.PI * 2.15);
+      ctx.lineTo(x + r * 0.55, y + r * 0.65);
+      ctx.lineTo(x - r * 0.55, y + r * 0.65);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Ojos oscuros
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(x - r * 0.28, y - 1.5, r * 0.18, 0, Math.PI * 2);
+      ctx.arc(x + r * 0.28, y - 1.5, r * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pequeñas líneas de mandíbula
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.22, y + r * 0.35);
+      ctx.lineTo(x - r * 0.22, y + r * 0.65);
+      ctx.moveTo(x, y + r * 0.35);
+      ctx.lineTo(x, y + r * 0.65);
+      ctx.moveTo(x + r * 0.22, y + r * 0.35);
+      ctx.lineTo(x + r * 0.22, y + r * 0.65);
+      ctx.stroke();
+    }
+
+    function drawItem(it) {
+      const pulseR = it.r + Math.sin(it.pulse) * 1.3;
+
+      if (it.type === "reward") {
+        // Recompensa dorada brillante
+        const grad = ctx.createRadialGradient(it.x, it.y, 1, it.x, it.y, pulseR * 2.2);
+        grad.addColorStop(0, "rgba(251, 191, 36, 0.75)");
+        grad.addColorStop(1, "rgba(251, 191, 36, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(it.x, it.y, pulseR * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#f59e0b";
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const rad = i % 2 === 0 ? pulseR + 1.5 : (pulseR + 1.5) * 0.48;
+          const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+          const px = it.x + Math.cos(ang) * rad;
+          const py = it.y + Math.sin(ang) * rad;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else if (it.type === "citrus") {
+        // Fruta cítrica naranja
+        ctx.fillStyle = "#fb923c";
+        ctx.beginPath();
+        ctx.arc(it.x, it.y, pulseR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#22c55e";
+        ctx.beginPath();
+        ctx.ellipse(it.x + 2, it.y - pulseR + 0.5, 3, 1.5, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Fruta roja tipo fresa
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.arc(it.x, it.y, pulseR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#22c55e";
+        ctx.beginPath();
+        ctx.ellipse(it.x, it.y - pulseR + 0.5, 3.2, 1.6, 0.2, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      for (const f of foods) {
-        const glowRadius = f.r + Math.sin(f.pulse) * 1.5;
-        const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, glowRadius * 2.2);
-        grad.addColorStop(0, "#f59e0b");
-        grad.addColorStop(0.6, "rgba(245, 158, 11, 0.35)");
-        grad.addColorStop(1, "rgba(245, 158, 11, 0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, glowRadius * 2.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      for (const sk of skulls) drawSkull(sk);
+      for (const it of items) drawItem(it);
 
       for (const s of snakes) {
         for (let i = s.segments.length - 1; i >= 0; i--) {
@@ -733,18 +920,28 @@
         }
       }
 
+      for (const p of popups) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life / 0.9);
+        ctx.fillStyle = p.color;
+        ctx.font = "bold 12px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(p.text, p.x, p.y);
+        ctx.restore();
+      }
+
       if (gameOver) {
         const isDark = document.body.classList.contains("dark");
         ctx.fillStyle = isDark ? "rgba(14, 17, 22, 0.88)" : "rgba(241, 245, 249, 0.88)";
         ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = isDark ? "#f8fafc" : "#0f172a";
-        ctx.font = "bold 22px system-ui, sans-serif";
+        ctx.font = "bold 20px system-ui, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 14);
+        ctx.fillText(deathReason, W / 2, H / 2 - 16);
         ctx.font = "13px system-ui, sans-serif";
         ctx.fillStyle = isDark ? "#cbd5e1" : "#334155";
-        ctx.fillText(`Nivel ${level} · Total acumulado: ${totalScore} pts`, W / 2, H / 2 + 10);
-        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 32);
+        ctx.fillText(`Nivel ${level} · Total acumulado: ${totalScore} pts`, W / 2, H / 2 + 8);
+        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 30);
       }
     }
 
@@ -756,7 +953,7 @@
       requestAnimationFrame(loop);
     }
 
-    updateHud();
+    setupLevel(1, true);
     requestAnimationFrame(loop);
   </script>
 </body>
