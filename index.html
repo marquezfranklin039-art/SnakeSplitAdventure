@@ -48,9 +48,12 @@
       border-radius: 16px;
       overflow: hidden;
       border: 2px solid #94a3b8;
-      background: #ffffff;
+      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
     }
-    body.dark #box { background: #141a23; border-color: #334155; }
+    body.dark #box {
+      background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
+      border-color: #334155;
+    }
     canvas { width: 100%; height: 100%; display: block; }
     .layer {
       position: absolute;
@@ -99,6 +102,7 @@
     <canvas id="c" width="300" height="340"></canvas>
 
     <div class="layer on" id="m-start">
+      <div style="font-size:11px;font-weight:800;color:#0284c7;">EDICIÓN ARCADE</div>
       <h2 style="margin:0;">SNAKE SPLIT</h2>
       <div class="pill" id="t-rec">Récord: 0 pts · Nivel 1</div>
       <div style="display:flex;gap:8px;">
@@ -136,9 +140,9 @@
     const tRec = document.getElementById("t-rec");
 
     const diffs = [
-      { label: "Tranquila", spd: 50, skulls: 0, move: 25 },
-      { label: "Estándar", spd: 65, skulls: 1, move: 36 },
-      { label: "Extrema", spd: 82, skulls: 2, move: 52 }
+      { label: "Tranquila", spd: 50, skulls: 1, move: 25 },
+      { label: "Estándar", spd: 65, skulls: 2, move: 36 },
+      { label: "Extrema", spd: 82, skulls: 3, move: 52 }
     ];
     let dIdx = 1;
     let snd = true;
@@ -150,7 +154,7 @@
     let snakes = [];
     let walls = [];
     let skulls = [];
-    let food = { x: 150, y: 120 };
+    let foods = [];
     let turn = 0;
     let prevT = 0;
     let audio = null;
@@ -207,6 +211,31 @@
       return false;
     }
 
+    function safeSpot(x, y, sweep = 0) {
+      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
+      for (let s = -1; s <= 1; s++) {
+        if (hitW(x, y + s * sweep, 14)) return false;
+      }
+      for (const sk of skulls) {
+        if (Math.hypot(x - sk.x, y - sk.y) < 32) return false;
+      }
+      return true;
+    }
+
+    function addFood() {
+      const rRoll = Math.random();
+      const kind = rRoll < 0.6 ? "berry" : (rRoll < 0.88 ? "citrus" : "star");
+      let x = W / 2, y = H * 0.4;
+      for (let i = 0; i < 40; i++) {
+        const tx = 26 + Math.random() * (W - 52);
+        const ty = 26 + Math.random() * (H - 52);
+        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
+      }
+      const val = kind === "star" ? 40 : (kind === "citrus" ? 20 : 10);
+      const grow = kind === "star" ? 3 : 2;
+      foods.push({ x, y, kind, val, grow, rad: kind === "star" ? 6.5 : 5.5 });
+    }
+
     function initLvl(n, resetTot) {
       lvl = n;
       pts = 0;
@@ -218,14 +247,27 @@
         { x: W - 106, y: 205, w: 68, h: 12 }
       ] : [];
       skulls = [];
-      const cnt = diffs[dIdx].skulls + Math.min(3, lvl - 1);
-      for (let i = 0; i < cnt; i++) {
-        const sx = 45 + ((i * 80) % (W - 90));
-        const sy = 75 + i * 55;
-        skulls.push({ x: sx, y: sy, minY: Math.max(24, sy - 35), maxY: Math.min(H - 24, sy + 35), dir: i % 2 ? -1 : 1, mov: lvl >= 4, r: 8.5 });
+      const cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
+      const mov = lvl >= 4;
+      const sweep = mov ? 36 : 0;
+      let tries = 0;
+      while (skulls.length < cnt && tries < 120) {
+        tries++;
+        const sx = 34 + Math.random() * (W - 68);
+        const sy = 44 + sweep + Math.random() * Math.max(20, H - 88 - sweep * 2);
+        if (safeSpot(sx, sy, sweep)) {
+          skulls.push({
+            x: sx, y: sy,
+            minY: Math.max(24, sy - sweep),
+            maxY: Math.min(H - 24, sy + sweep),
+            dir: Math.random() < 0.5 ? -1 : 1,
+            mov,
+            r: 8.5
+          });
+        }
       }
-      food.x = 30 + Math.random() * (W - 60);
-      food.y = 30 + Math.random() * (H - 60);
+      foods = [];
+      for (let i = 0; i < 5; i++) addFood();
       saveRec();
       tLvl.textContent = "Nivel " + lvl;
       tPts.textContent = "Puntos: " + pts + " / 300";
@@ -245,7 +287,7 @@
       state = "cfg";
       playFx(620, 0.05);
     }
-alert("Funciona");
+
     document.getElementById("b-play").onclick = goPlay;
     document.getElementById("b-cfg").onclick = goCfg;
     document.getElementById("b-cfg-top").onclick = goCfg;
@@ -320,93 +362,4 @@ alert("Funciona");
         }
         s.ang += dir * 3.0 * dt;
         const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
-        const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
-
-        const hitSk = skulls.some(sk => Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1);
-        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitW(nx, ny, s.r) || hitSk) {
-          if (s.player) {
-            state = "over";
-            saveRec();
-            playFx(200, 0.22, "sawtooth", 65);
-            return;
-          }
-          continue;
-        }
-
-        s.segs.unshift({ x: nx, y: ny });
-        s.segs.pop();
-
-        if (Math.hypot(nx - food.x, ny - food.y) < s.r + 7) {
-          pts += 10;
-          tot += 10;
-          saveRec();
-          playFx(587, 0.08, "sine", 880);
-          const tail = s.segs[s.segs.length - 1];
-          s.segs.push({ ...tail }, { ...tail });
-          food.x = 28 + Math.random() * (W - 56);
-          food.y = 28 + Math.random() * (H - 56);
-          if (pts >= 300) {
-            playFx(784, 0.16, "triangle");
-            initLvl(lvl + 1, false);
-            return;
-          }
-          tPts.textContent = "Puntos: " + pts + " / 300";
-        }
-        alive.push(s);
-      }
-      snakes = alive;
-    }
-
-    function render() {
-      ctx.clearRect(0, 0, W, H);
-      const dark = document.body.classList.contains("dark");
-
-      ctx.fillStyle = dark ? "#475569" : "#64748b";
-      for (const w of walls) ctx.fillRect(w.x, w.y, w.w, w.h);
-
-      ctx.fillStyle = "#f59e0b";
-      ctx.beginPath();
-      ctx.arc(food.x, food.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-
-      for (const sk of skulls) {
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.arc(sk.x, sk.y, sk.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      for (const s of snakes) {
-        for (let i = 0; i < s.segs.length; i++) {
-          ctx.fillStyle = `hsl(${s.hue}, 82%, ${i === 0 ? 40 : 52}%)`;
-          ctx.beginPath();
-          ctx.arc(s.segs[i].x, s.segs[i].y, s.r * (1 - i / (s.segs.length * 2.4)), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      if (state === "over") {
-        ctx.fillStyle = dark ? "rgba(14,17,22,0.85)" : "rgba(241,245,249,0.88)";
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = dark ? "#f8fafc" : "#0f172a";
-        ctx.font = "bold 19px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
-        ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 16);
-      }
-    }
-
-    function loop(t) {
-      const dt = Math.min((t - prevT) / 1000 || 0.016, 0.05);
-      prevT = t;
-      step(dt);
-      render();
-      requestAnimationFrame(loop);
-    }
-
-    initLvl(1, true);
-    requestAnimationFrame(loop);
-  </script>
-</body>
-</html>
+        const ny = s.segs[0].y + Math.sin(s.
