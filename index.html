@@ -445,7 +445,6 @@
     let soundEnabled = true;
     let vibrationEnabled = true;
 
-    // Motor de audio de calidad con envolventes y capas armónicas
     let audioCtx = null;
     function ensureAudio() {
       if (!soundEnabled) return null;
@@ -600,4 +599,348 @@
         walls.push({ x: W - 106, y: 205, w: 68, h: 12 });
       } else if (pattern === 1) {
         walls.push({ x: 42, y: 92, w: 64, h: 12 });
-        walls.push({ x: W
+        walls.push({ x: W / 2 - 36, y: 165, w: 72, h: 12 });
+        walls.push({ x: W - 106, y: 235, w: 64, h: 12 });
+      } else if (pattern === 2) {
+        walls.push({ x: 64, y: 95, w: 12, h: 95 });
+        walls.push({ x: W - 76, y: 140, w: 12, h: 95 });
+        walls.push({ x: W / 2 - 32, y: 65, w: 64, h: 12 });
+      } else {
+        walls.push({ x: 40, y: 115, w: 62, h: 12 });
+        walls.push({ x: W - 102, y: 115, w: 62, h: 12 });
+        walls.push({ x: W / 2 - 6, y: 155, w: 12, h: 78 });
+      }
+    }
+
+    function isSafeSpot(x, y, minDist = 28, verticalSweep = 0) {
+      if (Math.hypot(x - W / 2, y - H * 0.82) < 58) return false;
+
+      const checkSteps = verticalSweep > 0 ? 5 : 1;
+      for (let s = 0; s < checkSteps; s++) {
+        const ty = verticalSweep > 0
+          ? (y - verticalSweep) + (2 * verticalSweep * s) / (checkSteps - 1)
+          : y;
+        if (circleHitsWall(x, ty, 14, 4)) return false;
+      }
+
+      for (const sk of skulls) {
+        if (Math.hypot(x - sk.x, y - sk.y) < minDist) return false;
+      }
+      for (const it of items) {
+        if (Math.hypot(x - it.x, y - it.y) < minDist * 0.75) return false;
+      }
+      return true;
+    }
+
+    function getTargetSkullCount(lvl) {
+      const cfg = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+      const baseCount = lvl === 1 ? 1 : Math.min(6, lvl + 1);
+      return Math.max(0, Math.min(7, baseCount + cfg.skullBonus));
+    }
+
+    function spawnSkullsForLevel(lvl) {
+      skulls = [];
+      const cfg = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+      const count = getTargetSkullCount(lvl);
+      const moving = lvl >= 4;
+      const sweep = moving ? 42 : 0;
+      const moveSpeed = moving
+        ? Math.min(82, (30 + (lvl - 4) * 7) * cfg.moveSpeedMult)
+        : 0;
+
+      let attempts = 0;
+      while (skulls.length < count && attempts < 180) {
+        attempts++;
+        const x = 32 + Math.random() * (W - 64);
+        const minY = 36 + sweep;
+        const maxY = H - 36 - sweep;
+        const y = minY + Math.random() * Math.max(20, maxY - minY);
+
+        if (isSafeSpot(x, y, 36, sweep)) {
+          skulls.push({
+            x,
+            y,
+            baseY: y,
+            minY: Math.max(24, y - sweep),
+            maxY: Math.min(H - 24, y + sweep),
+            dirY: Math.random() < 0.5 ? -1 : 1,
+            speedY: moveSpeed,
+            moving,
+            r: 8.5,
+            bob: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    }
+
+    function spawnItem(forcedType = null) {
+      let type = forcedType;
+      if (!type) {
+        const roll = Math.random();
+        if (roll < 0.55) type = "berry";
+        else if (roll < 0.85) type = "citrus";
+        else type = "reward";
+      }
+
+      let x = W / 2;
+      let y = H * 0.35;
+      for (let i = 0; i < 60; i++) {
+        const tx = 24 + Math.random() * (W - 48);
+        const ty = 24 + Math.random() * (H - 48);
+        if (isSafeSpot(tx, ty, 24, 0)) {
+          x = tx;
+          y = ty;
+          break;
+        }
+      }
+
+      const points = type === "reward" ? 40 : (type === "citrus" ? 20 : 10);
+      const growth = type === "reward" ? 3 : 2;
+      const r = type === "reward" ? 6.5 : 5.5;
+
+      items.push({
+        x,
+        y,
+        r,
+        type,
+        points,
+        growth,
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+
+    function initItems(count = 6) {
+      items = [];
+      for (let i = 0; i < count; i++) {
+        spawnItem(i === count - 1 ? "reward" : null);
+      }
+    }
+
+    function updateHud() {
+      levelUi.textContent = `Nivel ${level}`;
+      scoreUi.textContent = `Puntos: ${levelScore} / ${POINTS_PER_LEVEL}`;
+      snakesUi.textContent = `Culebras: ${snakes.length}`;
+      const pct = Math.min(100, Math.round((levelScore / POINTS_PER_LEVEL) * 100));
+      progressFill.style.width = `${pct}%`;
+    }
+
+    function setupLevel(targetLevel, keepReset = false) {
+      level = targetLevel;
+      levelScore = 0;
+      if (keepReset) totalScore = 0;
+      gameOver = false;
+      deathReason = "¡Chocaste!";
+      isLevelUp = false;
+      isPaused = false;
+      popups = [];
+      particles = [];
+      pauseModal.classList.remove("active");
+      levelupModal.classList.remove("active");
+      snakes = [createSnake(W / 2, H * 0.82, -Math.PI / 2, 12, 152, true)];
+      buildWallsForLevel(level);
+      spawnSkullsForLevel(level);
+      initItems(6);
+      saveProgress(totalScore, level);
+      updateHud();
+    }
+
+    function resetGame() {
+      setupLevel(1, true);
+    }
+
+    function normalizeAngle(a) {
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      return a;
+    }
+
+    function chooseAutonomousDirection(s) {
+      const head = s.segments[0];
+      const margin = 34;
+
+      for (const sk of skulls) {
+        const d = Math.hypot(head.x - sk.x, head.y - sk.y);
+        if (d < 36) {
+          const awayAngle = Math.atan2(head.y - sk.y, head.x - sk.x);
+          const diff = normalizeAngle(awayAngle - s.angle);
+          return diff >= 0 ? 1 : -1;
+        }
+      }
+
+      const lookX = head.x + Math.cos(s.angle) * 24;
+      const lookY = head.y + Math.sin(s.angle) * 24;
+      const nearWall = circleHitsWall(lookX, lookY, s.radius + 6, 2);
+      if (nearWall) {
+        const wallCx = nearWall.x + nearWall.w / 2;
+        const wallCy = nearWall.y + nearWall.h / 2;
+        const awayAngle = Math.atan2(head.y - wallCy, head.x - wallCx);
+        const diff = normalizeAngle(awayAngle - s.angle);
+        return diff >= 0 ? 1 : -1;
+      }
+
+      if (head.x < margin) return normalizeAngle(0 - s.angle) >= 0 ? 1 : -1;
+      if (head.x > W - margin) return normalizeAngle(Math.PI - s.angle) >= 0 ? 1 : -1;
+      if (head.y < margin) return normalizeAngle(Math.PI / 2 - s.angle) >= 0 ? 1 : -1;
+      if (head.y > H - margin) return normalizeAngle(-Math.PI / 2 - s.angle) >= 0 ? 1 : -1;
+
+      if (items.length > 0) {
+        let nearest = items[0];
+        let bestDist = Math.hypot(head.x - nearest.x, head.y - nearest.y);
+        for (let i = 1; i < items.length; i++) {
+          const d = Math.hypot(head.x - items[i].x, head.y - items[i].y);
+          if (d < bestDist) {
+            bestDist = d;
+            nearest = items[i];
+          }
+        }
+        const targetAngle = Math.atan2(nearest.y - head.y, nearest.x - head.x);
+        const diff = normalizeAngle(targetAngle - s.angle);
+        if (Math.abs(diff) < 0.14) return 0;
+        return diff > 0 ? 1 : -1;
+      }
+
+      return s.aiTurn;
+    }
+
+    function splitSnakes() {
+      if (isStartScreen || isPaused || isSettingsOpen || isLevelUp) return;
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+      const nextSnakes = [];
+      let didSplit = false;
+      for (const s of snakes) {
+        if (s.segments.length >= 8 && nextSnakes.length + snakes.length <= 4) {
+          const mid = Math.floor(s.segments.length / 2);
+          const secondPart = s.segments.splice(mid);
+          s.segments.push({ ...s.segments[s.segments.length - 1] });
+          const angleB = normalizeAngle(s.angle + (s.isPlayer ? 0.85 : 0.65));
+          nextSnakes.push(s);
+          nextSnakes.push({
+            segments: secondPart,
+            angle: angleB,
+            turnDir: 0,
+            hue: (s.hue + 55) % 360,
+            radius: s.radius,
+            isPlayer: false,
+            aiTimer: 0.45 + Math.random() * 0.6,
+            aiTurn: Math.random() < 0.5 ? -1 : 1
+          });
+          spawnBurst(secondPart[0].x, secondPart[0].y, "#0284c7", 8);
+          didSplit = true;
+        } else {
+          nextSnakes.push(s);
+        }
+      }
+      if (didSplit) {
+        buzz(25);
+        sfx.split();
+      }
+      snakes = nextSnakes;
+      updateHud();
+    }
+
+    function setPlayerTurn(dir) {
+      for (const s of snakes) {
+        if (s.isPlayer) s.turnDir = dir;
+      }
+    }
+
+    function startNewGame() {
+      isStartScreen = false;
+      startModal.classList.remove("active");
+      pauseModal.classList.remove("active");
+      settingsModal.classList.remove("active");
+      levelupModal.classList.remove("active");
+      sfx.start();
+      setupLevel(1, true);
+    }
+
+    const btnStartPlay = document.getElementById("btn-start-play");
+    btnStartPlay.addEventListener("click", startNewGame);
+    btnStartPlay.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      startNewGame();
+    }, { passive: false });
+
+    document.getElementById("btn-open-settings-start").addEventListener("click", () => {
+      sfx.uiTap();
+      isSettingsOpen = true;
+      settingsModal.classList.add("active");
+    });
+
+    document.getElementById("btn-pause").addEventListener("click", () => {
+      if (isStartScreen || gameOver || isLevelUp || isSettingsOpen) return;
+      sfx.uiTap();
+      isPaused = !isPaused;
+      if (isPaused) {
+        pauseInfo.textContent = `Nivel ${level} · ${levelScore} / ${POINTS_PER_LEVEL} pts`;
+        pauseModal.classList.add("active");
+      } else {
+        pauseModal.classList.remove("active");
+      }
+    });
+
+    document.getElementById("btn-resume").addEventListener("click", () => {
+      sfx.uiTap();
+      isPaused = false;
+      pauseModal.classList.remove("active");
+    });
+
+    document.getElementById("btn-restart-pause").addEventListener("click", () => {
+      sfx.uiTap();
+      resetGame();
+    });
+
+    document.getElementById("btn-settings").addEventListener("click", () => {
+      if (gameOver || isLevelUp) return;
+      sfx.uiTap();
+      isSettingsOpen = !isSettingsOpen;
+      if (isSettingsOpen) {
+        pauseModal.classList.remove("active");
+        isPaused = false;
+        settingsModal.classList.add("active");
+      } else {
+        settingsModal.classList.remove("active");
+      }
+    });
+
+    document.getElementById("btn-close-settings").addEventListener("click", () => {
+      sfx.uiTap();
+      isSettingsOpen = false;
+      settingsModal.classList.remove("active");
+    });
+
+    document.getElementById("btn-next-level").addEventListener("click", () => {
+      sfx.uiTap();
+      setupLevel(level + 1, false);
+    });
+
+    document.querySelectorAll("#difficulty-options .pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#difficulty-options .pill-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        difficulty = btn.dataset.diff;
+        const cfg = DIFFICULTIES[difficulty] || DIFFICULTIES.normal;
+        diffDescUi.textContent = cfg.desc;
+        sfx.uiTap();
+        if (!isStartScreen) {
+          spawnSkullsForLevel(level);
+        }
+      });
+    });
+
+    document.querySelectorAll("#speed-options .pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#speed-options .pill-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        baseSpeed = Number(btn.dataset.speed);
+        sfx.uiTap();
+      });
+    });
+
+    document.querySelectorAll("#theme-options .pill-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#theme-options .pill-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.
