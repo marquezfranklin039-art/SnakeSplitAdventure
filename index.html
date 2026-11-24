@@ -1,65 +1,337 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Split</title>
-    <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            touch-action: none;
-        }
-        #game-container {
-            width: 300px;
-            height: 340px;
-            background: #1e1e1e;
-            border: 2px solid #333;
-            position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            background: radial-gradient(circle, #1a1a1a 0%, #0a0a0a 100%);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Snake Split</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #0e1116;
+      color: #ffffff;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 12px;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .hud {
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .badge {
+      background: #1b222c;
+      border: 1px solid #2e3948;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+    #game-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 300 / 340;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid #2e3948;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+      background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .controls {
+      width: 100%;
+      max-width: 360px;
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    button {
+      background: #1b222c;
+      color: #fff;
+      border: 1px solid #324052;
+      border-radius: 12px;
+      padding: 12px 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:active {
+      background: #2b3a4e;
+      transform: scale(0.98);
+    }
+    .split-btn {
+      background: #1f6feb;
+      border-color: #388bfd;
+    }
+    .split-btn:active {
+      background: #1158c7;
+    }
+  </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="gameCanvas" width="300" height="340"></canvas>
-    </div>
+  <div class="hud">
+    <div class="badge" id="score-ui">Puntos: 0</div>
+    <div class="badge" id="snakes-ui">Culebras: 1</div>
+  </div>
 
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
+  <div id="game-wrap">
+    <canvas id="game" width="300" height="340"></canvas>
+  </div>
 
-        // Renderizado inicial de prueba con fondo degradado
-        function initGame() {
-            ctx.fillStyle = "#0d0d0d";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Texto de estado
-            ctx.fillStyle = "#00ffcc";
-            ctx.font = "bold 14px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("SNAKE SPLIT - 300x340", canvas.width / 2, 40);
-            
-            ctx.fillStyle = "#888";
-            ctx.font = "12px sans-serif";
-            ctx.fillText("Listo para aplicar motor visual orgánico", canvas.width / 2, 170);
+  <div class="controls">
+    <button id="btn-left">◀ Izq</button>
+    <button class="split-btn" id="btn-split">✂ Dividir</button>
+    <button id="btn-right">Der ▶</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreUi = document.getElementById("score-ui");
+    const snakesUi = document.getElementById("snakes-ui");
+
+    const W = canvas.width;
+    const H = canvas.height;
+    let score = 0;
+    let gameOver = false;
+    let lastTime = 0;
+    let touchStartX = null;
+
+    function createSnake(x, y, angle, length = 10, hue = 152) {
+      const segments = [];
+      for (let i = 0; i < length; i++) {
+        segments.push({
+          x: x - Math.cos(angle) * i * 5,
+          y: y - Math.sin(angle) * i * 5
+        });
+      }
+      return { segments, angle, turnDir: 0, hue, radius: 6.5 };
+    }
+
+    let snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152)];
+    let foods = [];
+
+    function spawnFood() {
+      foods.push({
+        x: 24 + Math.random() * (W - 48),
+        y: 24 + Math.random() * (H - 48),
+        r: 5.5,
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+
+    for (let i = 0; i < 6; i++) spawnFood();
+
+    function resetGame() {
+      score = 0;
+      gameOver = false;
+      snakes = [createSnake(W / 2, H * 0.65, -Math.PI / 2, 12, 152)];
+      foods = [];
+      for (let i = 0; i < 6; i++) spawnFood();
+      updateHud();
+    }
+
+    function updateHud() {
+      scoreUi.textContent = `Puntos: ${score}`;
+      snakesUi.textContent = `Culebras: ${snakes.length}`;
+    }
+
+    function splitSnakes() {
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+      const nextSnakes = [];
+      for (const s of snakes) {
+        if (s.segments.length >= 8 && nextSnakes.length + snakes.length <= 4) {
+          const mid = Math.floor(s.segments.length / 2);
+          const secondPart = s.segments.splice(mid);
+          s.segments.push({ ...s.segments[s.segments.length - 1] });
+          const headB = secondPart[0];
+          const angleB = s.angle + 0.65;
+          nextSnakes.push(s);
+          nextSnakes.push({
+            segments: secondPart,
+            angle: angleB,
+            turnDir: -s.turnDir,
+            hue: (s.hue + 45) % 360,
+            radius: s.radius
+          });
+        } else {
+          nextSnakes.push(s);
+        }
+      }
+      snakes = nextSnakes;
+      updateHud();
+    }
+
+    function setTurn(dir) {
+      for (const s of snakes) {
+        s.turnDir = dir;
+      }
+    }
+
+    document.getElementById("btn-left").addEventListener("pointerdown", () => setTurn(-1));
+    document.getElementById("btn-left").addEventListener("pointerup", () => setTurn(0));
+    document.getElementById("btn-left").addEventListener("pointerleave", () => setTurn(0));
+
+    document.getElementById("btn-right").addEventListener("pointerdown", () => setTurn(1));
+    document.getElementById("btn-right").addEventListener("pointerup", () => setTurn(0));
+    document.getElementById("btn-right").addEventListener("pointerleave", () => setTurn(0));
+
+    document.getElementById("btn-split").addEventListener("click", splitSnakes);
+
+    canvas.addEventListener("pointerdown", (e) => {
+      if (gameOver) {
+        resetGame();
+        return;
+      }
+      touchStartX = e.clientX;
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      if (touchStartX === null) return;
+      const dx = e.clientX - touchStartX;
+      if (dx < -14) setTurn(-1);
+      else if (dx > 14) setTurn(1);
+    });
+
+    canvas.addEventListener("pointerup", () => {
+      touchStartX = null;
+      setTurn(0);
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "a") setTurn(-1);
+      if (e.key === "ArrowRight" || e.key === "d") setTurn(1);
+      if (e.key === " " || e.key === "Enter") splitSnakes();
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (["ArrowLeft", "a", "ArrowRight", "d"].includes(e.key)) setTurn(0);
+    });
+
+    function update(dt) {
+      if (gameOver) return;
+      const speed = 95; // px por segundo
+      const turnSpeed = 3.6;
+
+      for (const s of snakes) {
+        s.angle += s.turnDir * turnSpeed * dt;
+        const head = s.segments[0];
+        const nx = head.x + Math.cos(s.angle) * speed * dt;
+        const ny = head.y + Math.sin(s.angle) * speed * dt;
+
+        if (nx < s.radius || nx > W - s.radius || ny < s.radius || ny > H - s.radius) {
+          gameOver = true;
+          return;
         }
 
-        initGame();
-    </script>
+        s.segments.unshift({ x: nx, y: ny });
+        s.segments.pop();
+
+        for (let i = foods.length - 1; i >= 0; i--) {
+          const f = foods[i];
+          const dist = Math.hypot(nx - f.x, ny - f.y);
+          if (dist < s.radius + f.r + 2) {
+            foods.splice(i, 1);
+            spawnFood();
+            score += 10;
+            const tail = s.segments[s.segments.length - 1];
+            s.segments.push({ ...tail }, { ...tail });
+            updateHud();
+          }
+        }
+      }
+
+      for (const f of foods) {
+        f.pulse += dt * 5;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      // Comida orgánica brillante
+      for (const f of foods) {
+        const glowRadius = f.r + Math.sin(f.pulse) * 1.6;
+        const grad = ctx.createRadialGradient(f.x, f.y, 1, f.x, f.y, glowRadius * 2.2);
+        grad.addColorStop(0, "#ffd166");
+        grad.addColorStop(0.6, "rgba(255, 209, 102, 0.35)");
+        grad.addColorStop(1, "rgba(255, 209, 102, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, glowRadius * 2.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#ffe66d";
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Culebras con volumen suave
+      for (const s of snakes) {
+        for (let i = s.segments.length - 1; i >= 0; i--) {
+          const seg = s.segments[i];
+          const ratio = 1 - (i / Math.max(s.segments.length, 1)) * 0.45;
+          const r = s.radius * ratio;
+
+          const bodyGrad = ctx.createRadialGradient(
+            seg.x - r * 0.35,
+            seg.y - r * 0.35,
+            r * 0.15,
+            seg.x,
+            seg.y,
+            r
+          );
+          bodyGrad.addColorStop(0, `hsla(${s.hue}, 90%, 72%, 1)`);
+          bodyGrad.addColorStop(1, `hsla(${s.hue}, 78%, 34%, 1)`);
+
+          ctx.fillStyle = bodyGrad;
+          ctx.beginPath();
+          ctx.arc(seg.x, seg.y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(10, 14, 20, 0.78)";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 22px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
+        ctx.font = "14px system-ui, sans-serif";
+        ctx.fillStyle = "#cbd5e1";
+        ctx.fillText("Toca aquí o en Dividir para jugar de nuevo", W / 2, H / 2 + 18);
+      }
+    }
+
+    function loop(timestamp) {
+      const dt = Math.min((timestamp - lastTime) / 1000 || 0.016, 0.05);
+      lastTime = timestamp;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
 </body>
 </html>
