@@ -40,7 +40,7 @@ body.dark button{background:#1b222c;color:#f8fafc;border-color:#2e3948}
     <h2 style="margin:0">SNAKE SPLIT</h2>
     <div class="pill" id="t-rec">Record: 0 pts · Nivel 1</div>
     <div style="display:flex;gap:8px">
-      <button type="button" class="main" onclick="startGame()">Jugar</button>
+      <button type="button" class="main" onclick="testStart()">Jugar</button>
       <button type="button" onclick="openCfg()">Ajustes</button>
     </div>
   </div>
@@ -61,26 +61,4 @@ body.dark button{background:#1b222c;color:#f8fafc;border-color:#2e3948}
   </div>
   <div class="layer" id="m-lvl">
     <div style="font-size:11px;font-weight:800;color:#16a34a">OBJETIVO CUMPLIDO</div>
-    <h2 style="margin:0" id="t-lvl-done">Terminaste el nivel!</h2>
-    <p style="margin:0;font-size:13px" id="t-lvl-sub">Listo para comenzar el otro nivel.</p>
-    <button type="button" class="main" onclick="nextLevel()">Comenzar el otro nivel</button>
-  </div>
-</div>
-
-<div class="pads">
-  <button type="button" id="b-left">Izq</button>
-  <button type="button" class="main" onclick="splitSnakes()">Dividir</button>
-  <button type="button" id="b-right">Der</button>
-</div>
-
-<script>
-const c=document.getElementById("c"),ctx=c.getContext("2d"),W=300,H=340;
-const mStart=document.getElementById("m-start"),mPause=document.getElementById("m-pause"),mCfg=document.getElementById("m-cfg"),mLvl=document.getElementById("m-lvl");
-const tLvl=document.getElementById("t-lvl"),tPts=document.getElementById("t-pts"),tRec=document.getElementById("t-rec"),tLvlDone=document.getElementById("t-lvl-done"),tLvlSub=document.getElementById("t-lvl-sub"),bPause=document.getElementById("b-pause");
-const diffs=[{label:"Tranquila",spd:52,skulls:1,move:24},{label:"Estandar",spd:68,skulls:2,move:36},{label:"Extrema",spd:84,skulls:3,move:52}];
-let dIdx=1,snd=true,best=0,bestLvl=1,state="menu",lvl=1,pts=0,tot=0,snakes=[],walls=[],skulls=[],foods=[],turn=0,prevT=0,audio=null,raider=null,raiderCd=7;
-try{best=Number(localStorage.getItem("ss_rec")||0)||0;bestLvl=Number(localStorage.getItem("ss_lvl")||1)||1}catch(_){}
-
-function showRec(){tRec.textContent="Record: "+best+" pts · Nivel "+bestLvl}
-function saveRec(){if(tot>best)best=tot;if(lvl>bestLvl)bestLvl=lvl;try{localStorage.setItem("ss_rec",best);localStorage.setItem("ss_lvl",bestLvl)}catch(_){}showRec()}
-function ensureAudio(){if(!snd)return null;try{const A=window.AudioContext||window.webkitAudioContext;
+    <h2 style="
