@@ -92,6 +92,19 @@ button {
 }
 body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
 .main { background: #0284c7; color: #ffffff; border-color: #0369a1; }
+#dbg {
+  display: none;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
 </style>
 </head>
 <body>
@@ -99,8 +112,8 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     <span class="pill" id="t-lvl">Nivel 1</span>
     <span class="pill" id="t-pts">Puntos: 0 / 300</span>
     <div class="bar-right">
-      <button type="button" id="b-pause">Pausa</button>
-      <button type="button" id="b-cfg-top">Ajustes</button>
+      <button type="button" id="b-pause" onclick="togglePause()">Pausa</button>
+      <button type="button" onclick="openCfg()">Ajustes</button>
     </div>
   </div>
 
@@ -112,8 +125,8 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       <h2 style="margin:0;">SNAKE SPLIT</h2>
       <div class="pill" id="t-rec">Récord: 0 pts · Nivel 1</div>
       <div style="display:flex;gap:8px;">
-        <button type="button" class="main" id="b-play">Jugar</button>
-        <button type="button" id="b-cfg">Ajustes</button>
+        <button type="button" class="main" id="b-play" onclick="iniciarAhora()">Jugar</button>
+        <button type="button" id="b-cfg" onclick="openCfg()">Ajustes</button>
       </div>
     </div>
 
@@ -121,184 +134,12 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       <div style="font-size:11px;font-weight:800;color:#0284c7;">EN PAUSA</div>
       <h2 style="margin:0;">Juego pausado</h2>
       <p style="margin:0;font-size:13px;">Toca continuar para seguir jugando.</p>
-      <button type="button" class="main" id="b-resume">Continuar</button>
+      <button type="button" class="main" id="b-resume" onclick="togglePause()">Continuar</button>
     </div>
 
     <div class="layer" id="m-cfg">
       <h3 style="margin:0;">Configuración</h3>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
-        <button type="button" id="o-diff">Dificultad: Estándar</button>
-        <button type="button" id="o-theme">Pantalla: Clara</button>
-        <button type="button" id="o-snd">Sonido: Sí</button>
-      </div>
-      <button type="button" class="main" id="b-done">Listo</button>
-    </div>
-
-    <div class="layer" id="m-lvl">
-      <div style="font-size:11px;font-weight:800;color:#16a34a;">OBJETIVO CUMPLIDO</div>
-      <h2 style="margin:0;" id="t-lvl-done">¡Terminaste el nivel!</h2>
-      <p style="margin:0;font-size:13px;" id="t-lvl-sub">Listo para comenzar el otro nivel.</p>
-      <button type="button" class="main" id="b-next-lvl">Comenzar el otro nivel</button>
-    </div>
-  </div>
-
-  <div class="pads">
-    <button type="button" id="b-left">Izq</button>
-    <button type="button" class="main" id="b-split">Dividir</button>
-    <button type="button" id="b-right">Der</button>
-  </div>
-
-  <script>
-    const c = document.getElementById("c");
-    const ctx = c.getContext("2d");
-    const W = 300, H = 340;
-
-    const mStart = document.getElementById("m-start");
-    const mPause = document.getElementById("m-pause");
-    const mCfg = document.getElementById("m-cfg");
-    const mLvl = document.getElementById("m-lvl");
-    const tLvl = document.getElementById("t-lvl");
-    const tPts = document.getElementById("t-pts");
-    const tRec = document.getElementById("t-rec");
-    const tLvlDone = document.getElementById("t-lvl-done");
-    const tLvlSub = document.getElementById("t-lvl-sub");
-    const bPause = document.getElementById("b-pause");
-
-    const diffs = [
-      { label: "Tranquila", spd: 52, skulls: 1, move: 24 },
-      { label: "Estándar", spd: 68, skulls: 2, move: 36 },
-      { label: "Extrema", spd: 84, skulls: 3, move: 52 }
-    ];
-
-    let dIdx = 1, snd = true, best = 0, bestLvl = 1;
-    try {
-      best = Number(localStorage.getItem("ss_rec") || 0) || 0;
-      bestLvl = Number(localStorage.getItem("ss_lvl") || 1) || 1;
-    } catch (_) {}
-
-    let state = "menu", lvl = 1, pts = 0, tot = 0;
-    let snakes = [], walls = [], skulls = [], foods = [];
-    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7;
-
-    function setLayer(el, show) {
-      if (!el) return;
-      el.classList.toggle("on", show);
-      el.style.display = show ? "flex" : "none";
-    }
-
-    function showRec() {
-      tRec.textContent = "Récord: " + best + " pts · Nivel " + bestLvl;
-    }
-
-    function saveRec() {
-      if (tot > best) best = tot;
-      if (lvl > bestLvl) bestLvl = lvl;
-      try {
-        localStorage.setItem("ss_rec", String(best));
-        localStorage.setItem("ss_lvl", String(bestLvl));
-      } catch (_) {}
-      showRec();
-    }
-
-    function ensureAudio() {
-      if (!snd) return null;
-      try {
-        const A = window.AudioContext || window.webkitAudioContext;
-        if (!A) return null;
-        if (!audio) audio = new A();
-        if (audio.state === "suspended") audio.resume();
-        return audio;
-      } catch (_) {
-        return null;
-      }
-    }
-
-    function tone(a, t, f, d, w, v, e) {
-      const o = a.createOscillator(), g = a.createGain();
-      o.type = w || "triangle";
-      o.frequency.setValueAtTime(f, t);
-      if (e) o.frequency.exponentialRampToValueAtTime(e, t + d);
-      g.gain.setValueAtTime(0.001, t);
-      g.gain.linearRampToValueAtTime(v || 0.14, t + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.001, t + d);
-      o.connect(g);
-      g.connect(a.destination);
-      o.start(t);
-      o.stop(t + d + 0.02);
-    }
-
-    function playSound(k) {
-      if (!snd) return;
-      const a = ensureAudio();
-      if (!a) return;
-      try {
-        const t = a.currentTime;
-        if (k === "eat") {
-          tone(a, t, 523.25, 0.07, "triangle", 0.14, 659.25);
-          tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
-        } else if (k === "star") {
-          tone(a, t, 587.33, 0.07, "triangle", 0.15, 783.99);
-          tone(a, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
-          tone(a, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
-        } else if (k === "split") {
-          tone(a, t, 330, 0.08, "triangle", 0.14, 554.37);
-          tone(a, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
-        } else if (k === "start") {
-          tone(a, t, 392, 0.08, "triangle", 0.14, 523.25);
-          tone(a, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
-        } else if (k === "level") {
-          tone(a, t, 523.25, 0.09, "triangle", 0.15, 523.25);
-          tone(a, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
-          tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
-          tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
-        } else if (k === "alert") {
-          tone(a, t, 440, 0.06, "sawtooth", 0.1, 587.33);
-          tone(a, t + 0.08, 440, 0.06, "sawtooth", 0.1, 587.33);
-        } else if (k === "hit") {
-          tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
-          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
-        } else if (k === "click") {
-          tone(a, t, 660, 0.05, "sine", 0.1, 784);
-        }
-      } catch (_) {}
-    }
-
-    function makeSnake(x, y, ang, len, hue, player) {
-      const segs = [];
-      for (let i = 0; i < len; i++) {
-        segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
-      }
-      return { segs, ang, hue, player, r: 6.8 };
-    }
-
-    function hitWall(x, y, r) {
-      for (const w of walls) {
-        const nx = Math.max(w.x, Math.min(x, w.x + w.w));
-        const ny = Math.max(w.y, Math.min(y, w.y + w.h));
-        if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return true;
-      }
-      return false;
-    }
-
-    function safeSpot(x, y, sw) {
-      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
-      for (let s = -1; s <= 1; s++) {
-        if (hitWall(x, y + s * (sw || 0), 14)) return false;
-      }
-      for (const sk of skulls) {
-        if (Math.hypot(x - sk.x, y - sk.y) < 32) return false;
-      }
-      return true;
-    }
-
-    function addFood() {
-      const r = Math.random();
-      const kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
-      let x = W / 2, y = H * 0.42;
-      for (let i = 0; i < 45; i++) {
-        const tx = 26 + Math.random() * (W - 52);
-        const ty = 26 + Math.random() * (H - 52);
-        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
-      }
-      foods.push({
-        x, y, kind,
+        <button type="button" id="o-diff" onclick="cycleDiff()">Dificultad: Estándar</button>
+        <button type="button" id="o-theme" onclick="cycleTheme()">Pantalla: Clara</button>
+        <button type="button" id="o-snd
