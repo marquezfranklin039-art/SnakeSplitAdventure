@@ -1,144 +1,98 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Snake Split</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      padding: 12px;
-      background: #eef2f6;
-      color: #0f172a;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      touch-action: manipulation;
-    }
-    body.dark {
-      background: #0e1116;
-      color: #f8fafc;
-    }
-    .bar {
-      width: 100%;
-      max-width: 360px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    .bar-right {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .pill {
-      background: #ffffff;
-      color: #0f172a;
-      border: 1px solid #cbd5e1;
-      border-radius: 999px;
-      padding: 6px 10px;
-    }
-    body.dark .pill {
-      background: #1b222c;
-      color: #f8fafc;
-      border-color: #2e3948;
-    }
-    #box {
-      position: relative;
-      width: 100%;
-      max-width: 360px;
-      aspect-ratio: 300 / 340;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 2px solid #94a3b8;
-      background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
-    }
-    body.dark #box {
-      background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
-      border-color: #334155;
-    }
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-    .layer {
-      position: absolute;
-      inset: 0;
-      background: rgba(241, 245, 249, 0.96);
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 16px;
-      text-align: center;
-      z-index: 10;
-    }
-    body.dark .layer {
-      background: rgba(14, 17, 22, 0.96);
-    }
-    .layer.on {
-      display: flex;
-    }
-    .pads {
-      width: 100%;
-      max-width: 360px;
-      margin-top: 10px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-    button {
-      border: 1px solid #cbd5e1;
-      background: #ffffff;
-      color: #0f172a;
-      border-radius: 10px;
-      padding: 10px;
-      font-weight: 700;
-      font-size: 13px;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    body.dark button {
-      background: #1b222c;
-      color: #f8fafc;
-      border-color: #2e3948;
-    }
-    .main {
-      background: #0284c7;
-      color: #ffffff;
-      border-color: #0369a1;
-    }
-    #err-box {
-      display: none;
-      width: 100%;
-      max-width: 360px;
-      margin-top: 8px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Snake Split</title>
+<style>
+* { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 12px;
+  background: #eef2f6;
+  color: #0f172a;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+body.dark { background: #0e1116; color: #f8fafc; }
+.bar {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bar-right { display: flex; gap: 6px; align-items: center; }
+.pill {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+body.dark .pill { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
+#box {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 300 / 340;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid #94a3b8;
+  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
+}
+body.dark #box {
+  background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
+  border-color: #334155;
+}
+canvas { width: 100%; height: 100%; display: block; }
+.layer {
+  position: absolute;
+  inset: 0;
+  background: rgba(241, 245, 249, 0.96);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+  z-index: 10;
+}
+body.dark .layer { background: rgba(14, 17, 22, 0.96); }
+.layer.on { display: flex; }
+.pads {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+button {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
+.main { background: #0284c7; color: #ffffff; border-color: #0369a1; }
+</style>
 </head>
 <body>
   <div class="bar">
@@ -194,22 +148,10 @@
     <button type="button" id="b-right">Der</button>
   </div>
 
-  <div id="err-box"></div>
-
   <script>
-    const errBox = document.getElementById("err-box");
-    function showErr(msg) {
-      errBox.style.display = "block";
-      errBox.textContent = "Error: " + msg;
-    }
-    window.onerror = function (msg, _src, line) {
-      showErr(msg + " (línea " + line + ")");
-    };
-
     const c = document.getElementById("c");
     const ctx = c.getContext("2d");
-    const W = 300;
-    const H = 340;
+    const W = 300, H = 340;
 
     const mStart = document.getElementById("m-start");
     const mPause = document.getElementById("m-pause");
@@ -228,28 +170,21 @@
       { label: "Extrema", spd: 84, skulls: 3, move: 52 }
     ];
 
-    let dIdx = 1;
-    let snd = true;
-    let best = 0;
-    let bestLvl = 1;
+    let dIdx = 1, snd = true, best = 0, bestLvl = 1;
     try {
       best = Number(localStorage.getItem("ss_rec") || 0) || 0;
       bestLvl = Number(localStorage.getItem("ss_lvl") || 1) || 1;
     } catch (_) {}
 
-    let state = "menu";
-    let lvl = 1;
-    let pts = 0;
-    let tot = 0;
-    let snakes = [];
-    let walls = [];
-    let skulls = [];
-    let foods = [];
-    let turn = 0;
-    let prevT = 0;
-    let audio = null;
-    let raider = null;
-    let raiderCd = 7;
+    let state = "menu", lvl = 1, pts = 0, tot = 0;
+    let snakes = [], walls = [], skulls = [], foods = [];
+    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7;
+
+    function setLayer(el, show) {
+      if (!el) return;
+      el.classList.toggle("on", show);
+      el.style.display = show ? "flex" : "none";
+    }
 
     function showRec() {
       tRec.textContent = "Récord: " + best + " pts · Nivel " + bestLvl;
@@ -268,9 +203,9 @@
     function ensureAudio() {
       if (!snd) return null;
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return null;
-        if (!audio) audio = new AudioCtx();
+        const A = window.AudioContext || window.webkitAudioContext;
+        if (!A) return null;
+        if (!audio) audio = new A();
         if (audio.state === "suspended") audio.resume();
         return audio;
       } catch (_) {
@@ -278,58 +213,92 @@
       }
     }
 
-    function tone(ctxAud, start, freq, dur, wave, vol, endFreq) {
-      const osc = ctxAud.createOscillator();
-      const gain = ctxAud.createGain();
-      osc.type = wave || "triangle";
-      osc.frequency.setValueAtTime(freq, start);
-      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, start + dur);
-      gain.gain.setValueAtTime(0.001, start);
-      gain.gain.linearRampToValueAtTime(vol || 0.14, start + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
-      osc.connect(gain);
-      gain.connect(ctxAud.destination);
-      osc.start(start);
-      osc.stop(start + dur + 0.02);
+    function tone(a, t, f, d, w, v, e) {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = w || "triangle";
+      o.frequency.setValueAtTime(f, t);
+      if (e) o.frequency.exponentialRampToValueAtTime(e, t + d);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(v || 0.14, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, t + d);
+      o.connect(g);
+      g.connect(a.destination);
+      o.start(t);
+      o.stop(t + d + 0.02);
     }
 
-    function playSound(kind) {
+    function playSound(k) {
       if (!snd) return;
-      const ctxAud = ensureAudio();
-      if (!ctxAud) return;
+      const a = ensureAudio();
+      if (!a) return;
       try {
-        const t = ctxAud.currentTime;
-        if (kind === "eat") {
-          tone(ctxAud, t, 523.25, 0.07, "triangle", 0.14, 659.25);
-          tone(ctxAud, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
-        } else if (kind === "star") {
-          tone(ctxAud, t, 587.33, 0.07, "triangle", 0.15, 783.99);
-          tone(ctxAud, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
-          tone(ctxAud, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
-        } else if (kind === "split") {
-          tone(ctxAud, t, 330, 0.08, "triangle", 0.14, 554.37);
-          tone(ctxAud, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
-        } else if (kind === "start") {
-          tone(ctxAud, t, 392, 0.08, "triangle", 0.14, 523.25);
-          tone(ctxAud, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
-        } else if (kind === "level") {
-          tone(ctxAud, t, 523.25, 0.09, "triangle", 0.15, 523.25);
-          tone(ctxAud, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
-          tone(ctxAud, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
-          tone(ctxAud, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
-        } else if (kind === "alert") {
-          tone(ctxAud, t, 440, 0.06, "sawtooth", 0.1, 587.33);
-          tone(ctxAud, t + 0.08, 440, 0.06, "sawtooth", 0.1, 587.33);
-        } else if (kind === "hit") {
-          tone(ctxAud, t, 220, 0.14, "sawtooth", 0.15, 98);
-          tone(ctxAud, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
-        } else if (kind === "click") {
-          tone(ctxAud, t, 660, 0.05, "sine", 0.1, 784);
+        const t = a.currentTime;
+        if (k === "eat") {
+          tone(a, t, 523.25, 0.07, "triangle", 0.14, 659.25);
+          tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
+        } else if (k === "star") {
+          tone(a, t, 587.33, 0.07, "triangle", 0.15, 783.99);
+          tone(a, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
+          tone(a, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
+        } else if (k === "split") {
+          tone(a, t, 330, 0.08, "triangle", 0.14, 554.37);
+          tone(a, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
+        } else if (k === "start") {
+          tone(a, t, 392, 0.08, "triangle", 0.14, 523.25);
+          tone(a, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
+        } else if (k === "level") {
+          tone(a, t, 523.25, 0.09, "triangle", 0.15, 523.25);
+          tone(a, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
+          tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
+          tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
+        } else if (k === "alert") {
+          tone(a, t, 440, 0.06, "sawtooth", 0.1, 587.33);
+          tone(a, t + 0.08, 440, 0.06, "sawtooth", 0.1, 587.33);
+        } else if (k === "hit") {
+          tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
+          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
+        } else if (k === "click") {
+          tone(a, t, 660, 0.05, "sine", 0.1, 784);
         }
       } catch (_) {}
     }
 
-    function makeSnake(x, y, ang, len, hue, isPlayer) {
+    function makeSnake(x, y, ang, len, hue, player) {
       const segs = [];
       for (let i = 0; i < len; i++) {
-        segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y -
+        segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
+      }
+      return { segs, ang, hue, player, r: 6.8 };
+    }
+
+    function hitWall(x, y, r) {
+      for (const w of walls) {
+        const nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        const ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return true;
+      }
+      return false;
+    }
+
+    function safeSpot(x, y, sw) {
+      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
+      for (let s = -1; s <= 1; s++) {
+        if (hitWall(x, y + s * (sw || 0), 14)) return false;
+      }
+      for (const sk of skulls) {
+        if (Math.hypot(x - sk.x, y - sk.y) < 32) return false;
+      }
+      return true;
+    }
+
+    function addFood() {
+      const r = Math.random();
+      const kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
+      let x = W / 2, y = H * 0.42;
+      for (let i = 0; i < 45; i++) {
+        const tx = 26 + Math.random() * (W - 52);
+        const ty = 26 + Math.random() * (H - 52);
+        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
+      }
+      foods.push({
+        x, y, kind,
