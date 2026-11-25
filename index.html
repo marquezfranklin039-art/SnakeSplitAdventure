@@ -150,6 +150,13 @@
       </div>
       <button type="button" class="main" id="b-done">Listo</button>
     </div>
+
+    <div class="layer" id="m-lvl">
+      <div style="font-size:11px;font-weight:800;color:#16a34a;">OBJETIVO CUMPLIDO</div>
+      <h2 style="margin:0;" id="t-lvl-done">¡Terminaste el nivel!</h2>
+      <p style="margin:0;font-size:13px;" id="t-lvl-sub">Listo para comenzar el otro nivel.</p>
+      <button type="button" class="main" id="b-next-lvl">▶ Comenzar el otro nivel</button>
+    </div>
   </div>
 
   <div class="pads">
@@ -185,9 +192,12 @@
 
     const mStart = document.getElementById("m-start");
     const mCfg = document.getElementById("m-cfg");
+    const mLvl = document.getElementById("m-lvl");
     const tLvl = document.getElementById("t-lvl");
     const tPts = document.getElementById("t-pts");
     const tRec = document.getElementById("t-rec");
+    const tLvlDone = document.getElementById("t-lvl-done");
+    const tLvlSub = document.getElementById("t-lvl-sub");
 
     const diffs = [
       { label: "Tranquila", spd: 52, skulls: 1, move: 24 },
@@ -224,25 +234,36 @@
       showRec();
     }
 
-    function playFx(freq, dur, wave, endFreq) {
-      if (!snd) return;
+    function ensureAudio() {
+      if (!snd) return null;
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
+        if (!AudioCtx) return null;
         if (!audio) audio = new AudioCtx();
         if (audio.state === "suspended") audio.resume();
-        const now = audio.currentTime;
-        const osc = audio.createOscillator();
-        const gain = audio.createGain();
-        osc.type = wave || "sine";
+        return audio;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function playFx(freq, dur, wave, endFreq) {
+      if (!snd) return;
+      const ctxAud = ensureAudio();
+      if (!ctxAud) return;
+      try {
+        const now = ctxAud.currentTime;
+        const osc = ctxAud.createOscillator();
+        const gain = ctxAud.createGain();
+        osc.type = wave || "triangle";
         osc.frequency.setValueAtTime(freq, now);
-        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + (dur || 0.08));
-        gain.gain.setValueAtTime(0.06, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.08));
+        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + (dur || 0.1));
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.1));
         osc.connect(gain);
-        gain.connect(audio.destination);
+        gain.connect(ctxAud.destination);
         osc.start(now);
-        osc.stop(now + (dur || 0.08) + 0.02);
+        osc.stop(now + (dur || 0.1) + 0.03);
       } catch (_) {}
     }
 
@@ -254,7 +275,7 @@
           y: y - Math.sin(ang) * i * 5
         });
       }
-      return { segs: segs, ang: ang, hue: hue, player: isPlayer, r: 6.5, aiT: 0.45, aiD: 1 };
+      return { segs: segs, ang: ang, hue: hue, player: isPlayer, r: 6.5, aiT: 0.2, aiD: 1 };
     }
 
     function hitWall(x, y, r) {
@@ -306,6 +327,7 @@
       pts = 0;
       if (resetTot) tot = 0;
       turn = 0;
+      mLvl.classList.remove("on");
       snakes = [makeSnake(W / 2, H * 0.8, -Math.PI / 2, 12, 152, true)];
       walls = lvl > 1 ? [
         { x: 38, y: 120, w: 68, h: 12 },
@@ -344,23 +366,44 @@
     }
 
     function startGame() {
+      ensureAudio();
       try {
         mStart.classList.remove("on");
         mCfg.classList.remove("on");
+        mLvl.classList.remove("on");
         state = "play";
         initLvl(1, true);
-        playFx(440, 0.1, "triangle", 660);
+        playFx(440, 0.12, "triangle", 660);
       } catch (err) {
         alert("No se pudo iniciar: " + err.message);
       }
     }
 
+    function openLevelClear() {
+      state = "levelclear";
+      saveRec();
+      tLvlDone.textContent = "¡Terminaste el nivel " + lvl + "!";
+      tLvlSub.textContent = "Presiona para comenzar el otro nivel (Nivel " + (lvl + 1) + ").";
+      mLvl.classList.add("on");
+      playFx(523, 0.12, "triangle", 784);
+    }
+
+    function nextLevel() {
+      ensureAudio();
+      mLvl.classList.remove("on");
+      state = "play";
+      initLvl(lvl + 1, false);
+      playFx(587, 0.12, "triangle", 880);
+    }
+
     function openCfg() {
+      ensureAudio();
       try {
         mStart.classList.remove("on");
+        mLvl.classList.remove("on");
         mCfg.classList.add("on");
         state = "cfg";
-        playFx(620, 0.05, "sine", null);
+        playFx(620, 0.06, "sine", null);
       } catch (err) {
         alert("No se pudo abrir ajustes: " + err.message);
       }
@@ -377,8 +420,13 @@
     }
 
     function splitSnakes() {
+      ensureAudio();
       if (state === "over") {
         startGame();
+        return;
+      }
+      if (state === "levelclear") {
+        nextLevel();
         return;
       }
       if (state !== "play") return;
@@ -390,7 +438,8 @@
           const half = Math.floor(s.segs.length / 2);
           const part = s.segs.splice(half);
           next.push(s);
-          next.push(makeSnake(part[0].x, part[0].y, s.ang + 0.7, part.length, (s.hue + 60) % 360, false));
+          const childAng = s.ang + Math.PI * 0.5;
+          next.push(makeSnake(part[0].x, part[0].y, childAng, part.length, (s.hue + 60) % 360, false));
           splitOk = true;
         } else {
           next.push(s);
@@ -398,14 +447,58 @@
       }
       if (splitOk) {
         snakes = next;
-        playFx(360, 0.11, "triangle", 720);
+        playFx(360, 0.12, "triangle", 720);
       }
+    }
+
+    function normalizeAngle(a) {
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      return a;
+    }
+
+    function getAiTurn(s) {
+      const head = s.segs[0];
+      let target = null;
+      let bestDist = Infinity;
+      for (let i = 0; i < foods.length; i++) {
+        const d = Math.hypot(foods[i].x - head.x, foods[i].y - head.y);
+        if (d < bestDist) {
+          bestDist = d;
+          target = foods[i];
+        }
+      }
+
+      let desired = s.ang;
+      if (target) {
+        desired = Math.atan2(target.y - head.y, target.x - head.x);
+      }
+
+      const margin = 24;
+      if (head.x < margin) desired = 0;
+      else if (head.x > W - margin) desired = Math.PI;
+      if (head.y < margin) desired = Math.PI * 0.5;
+      else if (head.y > H - margin) desired = -Math.PI * 0.5;
+
+      const probeX = head.x + Math.cos(s.ang) * 22;
+      const probeY = head.y + Math.sin(s.ang) * 22;
+      const nearSkull = skulls.some(function (sk) {
+        return Math.hypot(probeX - sk.x, probeY - sk.y) < sk.r + 14;
+      });
+      if (hitWall(probeX, probeY, s.r + 6) || nearSkull) {
+        desired = normalizeAngle(s.ang + Math.PI * 0.65);
+      }
+
+      const diff = normalizeAngle(desired - s.ang);
+      if (Math.abs(diff) < 0.08) return 0;
+      return diff > 0 ? 1 : -1;
     }
 
     document.getElementById("b-play").addEventListener("click", startGame);
     document.getElementById("b-cfg").addEventListener("click", openCfg);
     document.getElementById("b-cfg-top").addEventListener("click", openCfg);
     document.getElementById("b-done").addEventListener("click", closeCfg);
+    document.getElementById("b-next-lvl").addEventListener("click", nextLevel);
 
     document.getElementById("o-diff").addEventListener("click", function (e) {
       dIdx = (dIdx + 1) % diffs.length;
@@ -421,17 +514,17 @@
     document.getElementById("o-snd").addEventListener("click", function (e) {
       snd = !snd;
       e.currentTarget.textContent = "Sonido: " + (snd ? "Sí" : "No");
-      if (snd) playFx(740, 0.07, "sine", null);
+      if (snd) playFx(740, 0.08, "triangle", 980);
     });
 
     const bLeft = document.getElementById("b-left");
     const bRight = document.getElementById("b-right");
-    bLeft.addEventListener("pointerdown", function () { turn = -1; });
+    bLeft.addEventListener("pointerdown", function () { ensureAudio(); turn = -1; });
     bLeft.addEventListener("pointerup", function () { turn = 0; });
     bLeft.addEventListener("pointerleave", function () { turn = 0; });
     bLeft.addEventListener("pointercancel", function () { turn = 0; });
 
-    bRight.addEventListener("pointerdown", function () { turn = 1; });
+    bRight.addEventListener("pointerdown", function () { ensureAudio(); turn = 1; });
     bRight.addEventListener("pointerup", function () { turn = 0; });
     bRight.addEventListener("pointerleave", function () { turn = 0; });
     bRight.addEventListener("pointercancel", function () { turn = 0; });
@@ -440,6 +533,7 @@
 
     c.addEventListener("click", function () {
       if (state === "over") startGame();
+      else if (state === "levelclear") nextLevel();
     });
 
     function step(dt) {
@@ -461,14 +555,9 @@
         const s = snakes[i];
         let dir = turn;
         if (!s.player) {
-          s.aiT -= dt;
-          if (s.aiT <= 0) {
-            s.aiT = 0.45;
-            s.aiD = Math.random() < 0.5 ? -1 : 1;
-          }
-          dir = s.aiD;
+          dir = getAiTurn(s);
         }
-        s.ang += dir * 3.0 * dt;
+        s.ang = normalizeAngle(s.ang + dir * 3.1 * dt);
         const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
         const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
 
@@ -480,7 +569,7 @@
           if (s.player) {
             state = "over";
             saveRec();
-            playFx(200, 0.22, "sawtooth", 65);
+            playFx(200, 0.24, "sawtooth", 65);
             return;
           }
           continue;
@@ -497,15 +586,14 @@
             pts += f.val;
             tot += f.val;
             saveRec();
-            playFx(f.kind === "star" ? 660 : 587, 0.08, "sine", f.kind === "star" ? 990 : 880);
+            playFx(f.kind === "star" ? 660 : 587, 0.09, "triangle", f.kind === "star" ? 990 : 880);
             const tail = s.segs[s.segs.length - 1];
             for (let g = 0; g < f.grow; g++) s.segs.push({ x: tail.x, y: tail.y });
+            tPts.textContent = "Puntos: " + pts + " / 300";
             if (pts >= 300) {
-              playFx(784, 0.16, "triangle", null);
-              initLvl(lvl + 1, false);
+              openLevelClear();
               return;
             }
-            tPts.textContent = "Puntos: " + pts + " / 300";
           }
         }
         alive.push(s);
