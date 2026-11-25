@@ -5,22 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Snake Split</title>
   <style>
-    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
     body {
       margin: 0;
       min-height: 100vh;
       padding: 12px;
       background: #eef2f6;
       color: #0f172a;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      touch-action: none;
+      touch-action: manipulation;
     }
-    body.dark { background: #0e1116; color: #f8fafc; }
+    body.dark {
+      background: #0e1116;
+      color: #f8fafc;
+    }
     .bar {
       width: 100%;
       max-width: 360px;
@@ -39,7 +47,11 @@
       border-radius: 999px;
       padding: 6px 10px;
     }
-    body.dark .pill { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
+    body.dark .pill {
+      background: #1b222c;
+      color: #f8fafc;
+      border-color: #2e3948;
+    }
     #box {
       position: relative;
       width: 100%;
@@ -54,7 +66,11 @@
       background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
       border-color: #334155;
     }
-    canvas { width: 100%; height: 100%; display: block; }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
     .layer {
       position: absolute;
       inset: 0;
@@ -66,9 +82,14 @@
       gap: 10px;
       padding: 16px;
       text-align: center;
+      z-index: 5;
     }
-    body.dark .layer { background: rgba(14, 17, 22, 0.95); }
-    .layer.on { display: flex; }
+    body.dark .layer {
+      background: rgba(14, 17, 22, 0.96);
+    }
+    .layer.on {
+      display: flex;
+    }
     .pads {
       width: 100%;
       max-width: 360px;
@@ -86,9 +107,18 @@
       font-weight: 700;
       font-size: 13px;
       cursor: pointer;
+      touch-action: manipulation;
     }
-    body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
-    .main { background: #0284c7; color: #ffffff; border-color: #0369a1; }
+    body.dark button {
+      background: #1b222c;
+      color: #f8fafc;
+      border-color: #2e3948;
+    }
+    .main {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0369a1;
+    }
   </style>
 </head>
 <body>
@@ -129,6 +159,476 @@
   </div>
 
   <script>
+    window.addEventListener("error", function (ev) {
+      alert("Error en juego: " + (ev.message || "desconocido"));
+    });
+
+    function readStore(key, fallback) {
+      try {
+        const v = localStorage.getItem(key);
+        return v === null ? fallback : v;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function writeStore(key, val) {
+      try {
+        localStorage.setItem(key, String(val));
+      } catch (_) {}
+    }
+
     const c = document.getElementById("c");
     const ctx = c.getContext("2d");
-    const W = 300, H = 3
+    const W = 300;
+    const H = 340;
+
+    const mStart = document.getElementById("m-start");
+    const mCfg = document.getElementById("m-cfg");
+    const tLvl = document.getElementById("t-lvl");
+    const tPts = document.getElementById("t-pts");
+    const tRec = document.getElementById("t-rec");
+
+    const diffs = [
+      { label: "Tranquila", spd: 52, skulls: 1, move: 24 },
+      { label: "Estándar", spd: 68, skulls: 2, move: 36 },
+      { label: "Extrema", spd: 84, skulls: 3, move: 52 }
+    ];
+
+    let dIdx = 1;
+    let snd = true;
+    let best = Number(readStore("ss_rec", 0)) || 0;
+    let bestLvl = Number(readStore("ss_lvl", 1)) || 1;
+
+    let state = "menu";
+    let lvl = 1;
+    let pts = 0;
+    let tot = 0;
+    let snakes = [];
+    let walls = [];
+    let skulls = [];
+    let foods = [];
+    let turn = 0;
+    let prevT = 0;
+    let audio = null;
+
+    function showRec() {
+      tRec.textContent = "Récord: " + best + " pts · Nivel " + bestLvl;
+    }
+
+    function saveRec() {
+      if (tot > best) best = tot;
+      if (lvl > bestLvl) bestLvl = lvl;
+      writeStore("ss_rec", best);
+      writeStore("ss_lvl", bestLvl);
+      showRec();
+    }
+
+    function playFx(freq, dur, wave, endFreq) {
+      if (!snd) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!audio) audio = new AudioCtx();
+        if (audio.state === "suspended") audio.resume();
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = wave || "sine";
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + (dur || 0.08));
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.08));
+        osc.connect(gain);
+        gain.connect(audio.destination);
+        osc.start(now);
+        osc.stop(now + (dur || 0.08) + 0.02);
+      } catch (_) {}
+    }
+
+    function makeSnake(x, y, ang, len, hue, isPlayer) {
+      const segs = [];
+      for (let i = 0; i < len; i++) {
+        segs.push({
+          x: x - Math.cos(ang) * i * 5,
+          y: y - Math.sin(ang) * i * 5
+        });
+      }
+      return { segs: segs, ang: ang, hue: hue, player: isPlayer, r: 6.5, aiT: 0.45, aiD: 1 };
+    }
+
+    function hitWall(x, y, r) {
+      for (let i = 0; i < walls.length; i++) {
+        const w = walls[i];
+        const nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        const ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        const dx = x - nx;
+        const dy = y - ny;
+        if (dx * dx + dy * dy < r * r) return true;
+      }
+      return false;
+    }
+
+    function safeSpot(x, y, sweep) {
+      const sp = sweep || 0;
+      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
+      for (let s = -1; s <= 1; s++) {
+        if (hitWall(x, y + s * sp, 14)) return false;
+      }
+      for (let i = 0; i < skulls.length; i++) {
+        if (Math.hypot(x - skulls[i].x, y - skulls[i].y) < 32) return false;
+      }
+      return true;
+    }
+
+    function addFood() {
+      const roll = Math.random();
+      const kind = roll < 0.6 ? "berry" : (roll < 0.88 ? "citrus" : "star");
+      let x = W / 2;
+      let y = H * 0.42;
+      for (let i = 0; i < 45; i++) {
+        const tx = 26 + Math.random() * (W - 52);
+        const ty = 26 + Math.random() * (H - 52);
+        if (safeSpot(tx, ty, 0)) {
+          x = tx;
+          y = ty;
+          break;
+        }
+      }
+      const val = kind === "star" ? 40 : (kind === "citrus" ? 20 : 10);
+      const grow = kind === "star" ? 3 : 2;
+      const rad = kind === "star" ? 6.8 : 5.8;
+      foods.push({ x: x, y: y, kind: kind, val: val, grow: grow, rad: rad });
+    }
+
+    function initLvl(n, resetTot) {
+      lvl = n;
+      pts = 0;
+      if (resetTot) tot = 0;
+      turn = 0;
+      snakes = [makeSnake(W / 2, H * 0.8, -Math.PI / 2, 12, 152, true)];
+      walls = lvl > 1 ? [
+        { x: 38, y: 120, w: 68, h: 12 },
+        { x: W - 106, y: 205, w: 68, h: 12 }
+      ] : [];
+      skulls = [];
+
+      const cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
+      const mov = lvl >= 4;
+      const sweep = mov ? 36 : 0;
+      let tries = 0;
+
+      while (skulls.length < cnt && tries < 140) {
+        tries++;
+        const sx = 34 + Math.random() * (W - 68);
+        const sy = 44 + sweep + Math.random() * Math.max(20, H - 88 - sweep * 2);
+        if (safeSpot(sx, sy, sweep)) {
+          skulls.push({
+            x: sx,
+            y: sy,
+            minY: Math.max(24, sy - sweep),
+            maxY: Math.min(H - 24, sy + sweep),
+            dir: Math.random() < 0.5 ? -1 : 1,
+            mov: mov,
+            r: 8.5
+          });
+        }
+      }
+
+      foods = [];
+      for (let i = 0; i < 5; i++) addFood();
+
+      saveRec();
+      tLvl.textContent = "Nivel " + lvl;
+      tPts.textContent = "Puntos: " + pts + " / 300";
+    }
+
+    function startGame() {
+      try {
+        mStart.classList.remove("on");
+        mCfg.classList.remove("on");
+        state = "play";
+        initLvl(1, true);
+        playFx(440, 0.1, "triangle", 660);
+      } catch (err) {
+        alert("No se pudo iniciar: " + err.message);
+      }
+    }
+
+    function openCfg() {
+      try {
+        mStart.classList.remove("on");
+        mCfg.classList.add("on");
+        state = "cfg";
+        playFx(620, 0.05, "sine", null);
+      } catch (err) {
+        alert("No se pudo abrir ajustes: " + err.message);
+      }
+    }
+
+    function closeCfg() {
+      mCfg.classList.remove("on");
+      if (tot === 0 && pts === 0) {
+        mStart.classList.add("on");
+        state = "menu";
+      } else {
+        state = "play";
+      }
+    }
+
+    function splitSnakes() {
+      if (state === "over") {
+        startGame();
+        return;
+      }
+      if (state !== "play") return;
+      const next = [];
+      let splitOk = false;
+      for (let i = 0; i < snakes.length; i++) {
+        const s = snakes[i];
+        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
+          const half = Math.floor(s.segs.length / 2);
+          const part = s.segs.splice(half);
+          next.push(s);
+          next.push(makeSnake(part[0].x, part[0].y, s.ang + 0.7, part.length, (s.hue + 60) % 360, false));
+          splitOk = true;
+        } else {
+          next.push(s);
+        }
+      }
+      if (splitOk) {
+        snakes = next;
+        playFx(360, 0.11, "triangle", 720);
+      }
+    }
+
+    document.getElementById("b-play").addEventListener("click", startGame);
+    document.getElementById("b-cfg").addEventListener("click", openCfg);
+    document.getElementById("b-cfg-top").addEventListener("click", openCfg);
+    document.getElementById("b-done").addEventListener("click", closeCfg);
+
+    document.getElementById("o-diff").addEventListener("click", function (e) {
+      dIdx = (dIdx + 1) % diffs.length;
+      e.currentTarget.textContent = "Dificultad: " + diffs[dIdx].label;
+      initLvl(lvl, false);
+    });
+
+    document.getElementById("o-theme").addEventListener("click", function (e) {
+      const dark = document.body.classList.toggle("dark");
+      e.currentTarget.textContent = "Pantalla: " + (dark ? "Oscura" : "Clara");
+    });
+
+    document.getElementById("o-snd").addEventListener("click", function (e) {
+      snd = !snd;
+      e.currentTarget.textContent = "Sonido: " + (snd ? "Sí" : "No");
+      if (snd) playFx(740, 0.07, "sine", null);
+    });
+
+    const bLeft = document.getElementById("b-left");
+    const bRight = document.getElementById("b-right");
+    bLeft.addEventListener("pointerdown", function () { turn = -1; });
+    bLeft.addEventListener("pointerup", function () { turn = 0; });
+    bLeft.addEventListener("pointerleave", function () { turn = 0; });
+    bLeft.addEventListener("pointercancel", function () { turn = 0; });
+
+    bRight.addEventListener("pointerdown", function () { turn = 1; });
+    bRight.addEventListener("pointerup", function () { turn = 0; });
+    bRight.addEventListener("pointerleave", function () { turn = 0; });
+    bRight.addEventListener("pointercancel", function () { turn = 0; });
+
+    document.getElementById("b-split").addEventListener("click", splitSnakes);
+
+    c.addEventListener("click", function () {
+      if (state === "over") startGame();
+    });
+
+    function step(dt) {
+      if (state !== "play") return;
+      const cfg = diffs[dIdx];
+      const spd = cfg.spd + (lvl - 1) * 4;
+
+      for (let i = 0; i < skulls.length; i++) {
+        const sk = skulls[i];
+        if (sk.mov) {
+          sk.y += sk.dir * cfg.move * dt;
+          if (sk.y <= sk.minY) { sk.y = sk.minY; sk.dir = 1; }
+          if (sk.y >= sk.maxY) { sk.y = sk.maxY; sk.dir = -1; }
+        }
+      }
+
+      const alive = [];
+      for (let i = 0; i < snakes.length; i++) {
+        const s = snakes[i];
+        let dir = turn;
+        if (!s.player) {
+          s.aiT -= dt;
+          if (s.aiT <= 0) {
+            s.aiT = 0.45;
+            s.aiD = Math.random() < 0.5 ? -1 : 1;
+          }
+          dir = s.aiD;
+        }
+        s.ang += dir * 3.0 * dt;
+        const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
+        const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
+
+        const hitSk = skulls.some(function (sk) {
+          return Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1;
+        });
+
+        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitWall(nx, ny, s.r) || hitSk) {
+          if (s.player) {
+            state = "over";
+            saveRec();
+            playFx(200, 0.22, "sawtooth", 65);
+            return;
+          }
+          continue;
+        }
+
+        s.segs.unshift({ x: nx, y: ny });
+        s.segs.pop();
+
+        for (let fIdx = foods.length - 1; fIdx >= 0; fIdx--) {
+          const f = foods[fIdx];
+          if (Math.hypot(nx - f.x, ny - f.y) < s.r + f.rad + 2) {
+            foods.splice(fIdx, 1);
+            addFood();
+            pts += f.val;
+            tot += f.val;
+            saveRec();
+            playFx(f.kind === "star" ? 660 : 587, 0.08, "sine", f.kind === "star" ? 990 : 880);
+            const tail = s.segs[s.segs.length - 1];
+            for (let g = 0; g < f.grow; g++) s.segs.push({ x: tail.x, y: tail.y });
+            if (pts >= 300) {
+              playFx(784, 0.16, "triangle", null);
+              initLvl(lvl + 1, false);
+              return;
+            }
+            tPts.textContent = "Puntos: " + pts + " / 300";
+          }
+        }
+        alive.push(s);
+      }
+      snakes = alive;
+    }
+
+    function drawSkull(sk) {
+      ctx.save();
+      ctx.translate(sk.x, sk.y);
+
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, sk.r + 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0, -1, sk.r * 0.85, Math.PI * 0.85, Math.PI * 2.15);
+      ctx.lineTo(sk.r * 0.45, sk.r * 0.85);
+      ctx.lineTo(-sk.r * 0.45, sk.r * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(-3, -1.5, 1.8, 0, Math.PI * 2);
+      ctx.arc(3, -1.5, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-2.5, 3.2);
+      ctx.lineTo(-2.5, 5.5);
+      ctx.moveTo(0, 3.2);
+      ctx.lineTo(0, 5.5);
+      ctx.moveTo(2.5, 3.2);
+      ctx.lineTo(2.5, 5.5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFood(f) {
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      if (f.kind === "star") {
+        ctx.fillStyle = "#f59e0b";
+        ctx.strokeStyle = "#78350f";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const rad = i % 2 === 0 ? f.rad + 1.5 : f.rad * 0.48;
+          const a = (i * Math.PI) / 5 - Math.PI / 2;
+          if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
+          else ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = f.kind === "citrus" ? "#fb923c" : "#ef4444";
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, f.rad, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#16a34a";
+        ctx.fillRect(-1.1, -f.rad - 2.8, 2.2, 3.2);
+      }
+      ctx.restore();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+      const dark = document.body.classList.contains("dark");
+
+      ctx.fillStyle = dark ? "#475569" : "#64748b";
+      for (let i = 0; i < walls.length; i++) {
+        const w = walls[i];
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+      }
+
+      for (let i = 0; i < foods.length; i++) drawFood(foods[i]);
+      for (let i = 0; i < skulls.length; i++) drawSkull(skulls[i]);
+
+      for (let sIdx = 0; sIdx < snakes.length; sIdx++) {
+        const s = snakes[sIdx];
+        for (let i = 0; i < s.segs.length; i++) {
+          ctx.fillStyle = "hsl(" + s.hue + ", 82%, " + (i === 0 ? 40 : 52) + "%)";
+          ctx.beginPath();
+          ctx.arc(s.segs[i].x, s.segs[i].y, s.r * (1 - i / (s.segs.length * 2.4)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (state === "over") {
+        ctx.fillStyle = dark ? "rgba(14,17,22,0.85)" : "rgba(241,245,249,0.88)";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = dark ? "#f8fafc" : "#0f172a";
+        ctx.font = "bold 19px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
+        ctx.font = "13px system-ui, sans-serif";
+        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 16);
+      }
+    }
+
+    function loop(t) {
+      const dt = Math.min((t - prevT) / 1000 || 0.016, 0.05);
+      prevT = t;
+      step(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    showRec();
+    initLvl(1, true);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
