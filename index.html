@@ -247,23 +247,51 @@
       }
     }
 
-    function playFx(freq, dur, wave, endFreq) {
+    function tone(ctxAud, startTime, freq, dur, wave, vol, endFreq) {
+      const osc = ctxAud.createOscillator();
+      const gain = ctxAud.createGain();
+      osc.type = wave || "triangle";
+      osc.frequency.setValueAtTime(freq, startTime);
+      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, startTime + dur);
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.linearRampToValueAtTime(vol || 0.14, startTime + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      osc.connect(gain);
+      gain.connect(ctxAud.destination);
+      osc.start(startTime);
+      osc.stop(startTime + dur + 0.02);
+    }
+
+    function playSound(kind) {
       if (!snd) return;
       const ctxAud = ensureAudio();
       if (!ctxAud) return;
       try {
-        const now = ctxAud.currentTime;
-        const osc = ctxAud.createOscillator();
-        const gain = ctxAud.createGain();
-        osc.type = wave || "triangle";
-        osc.frequency.setValueAtTime(freq, now);
-        if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + (dur || 0.1));
-        gain.gain.setValueAtTime(0.16, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + (dur || 0.1));
-        osc.connect(gain);
-        gain.connect(ctxAud.destination);
-        osc.start(now);
-        osc.stop(now + (dur || 0.1) + 0.03);
+        const t = ctxAud.currentTime;
+        if (kind === "eat") {
+          tone(ctxAud, t, 523.25, 0.07, "triangle", 0.14, 659.25);
+          tone(ctxAud, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
+        } else if (kind === "star") {
+          tone(ctxAud, t, 587.33, 0.07, "triangle", 0.15, 783.99);
+          tone(ctxAud, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
+          tone(ctxAud, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
+        } else if (kind === "split") {
+          tone(ctxAud, t, 330, 0.08, "triangle", 0.14, 554.37);
+          tone(ctxAud, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
+        } else if (kind === "start") {
+          tone(ctxAud, t, 392, 0.08, "triangle", 0.14, 523.25);
+          tone(ctxAud, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
+        } else if (kind === "level") {
+          tone(ctxAud, t, 523.25, 0.09, "triangle", 0.15, 523.25);
+          tone(ctxAud, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
+          tone(ctxAud, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
+          tone(ctxAud, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
+        } else if (kind === "hit") {
+          tone(ctxAud, t, 220, 0.14, "sawtooth", 0.15, 98);
+          tone(ctxAud, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
+        } else if (kind === "click") {
+          tone(ctxAud, t, 660, 0.05, "sine", 0.1, 784);
+        }
       } catch (_) {}
     }
 
@@ -275,7 +303,7 @@
           y: y - Math.sin(ang) * i * 5
         });
       }
-      return { segs: segs, ang: ang, hue: hue, player: isPlayer, r: 6.5, aiT: 0.2, aiD: 1 };
+      return { segs: segs, ang: ang, hue: hue, player: isPlayer, r: 6.5 };
     }
 
     function hitWall(x, y, r) {
@@ -373,7 +401,7 @@
         mLvl.classList.remove("on");
         state = "play";
         initLvl(1, true);
-        playFx(440, 0.12, "triangle", 660);
+        playSound("start");
       } catch (err) {
         alert("No se pudo iniciar: " + err.message);
       }
@@ -385,7 +413,7 @@
       tLvlDone.textContent = "¡Terminaste el nivel " + lvl + "!";
       tLvlSub.textContent = "Presiona para comenzar el otro nivel (Nivel " + (lvl + 1) + ").";
       mLvl.classList.add("on");
-      playFx(523, 0.12, "triangle", 784);
+      playSound("level");
     }
 
     function nextLevel() {
@@ -393,7 +421,7 @@
       mLvl.classList.remove("on");
       state = "play";
       initLvl(lvl + 1, false);
-      playFx(587, 0.12, "triangle", 880);
+      playSound("start");
     }
 
     function openCfg() {
@@ -403,7 +431,7 @@
         mLvl.classList.remove("on");
         mCfg.classList.add("on");
         state = "cfg";
-        playFx(620, 0.06, "sine", null);
+        playSound("click");
       } catch (err) {
         alert("No se pudo abrir ajustes: " + err.message);
       }
@@ -419,304 +447,11 @@
       }
     }
 
-    function splitSnakes() {
-      ensureAudio();
-      if (state === "over") {
-        startGame();
-        return;
-      }
-      if (state === "levelclear") {
-        nextLevel();
-        return;
-      }
-      if (state !== "play") return;
-      const next = [];
-      let splitOk = false;
-      for (let i = 0; i < snakes.length; i++) {
-        const s = snakes[i];
-        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
-          const half = Math.floor(s.segs.length / 2);
-          const part = s.segs.splice(half);
-          next.push(s);
-          const childAng = s.ang + Math.PI * 0.5;
-          next.push(makeSnake(part[0].x, part[0].y, childAng, part.length, (s.hue + 60) % 360, false));
-          splitOk = true;
-        } else {
-          next.push(s);
-        }
-      }
-      if (splitOk) {
-        snakes = next;
-        playFx(360, 0.12, "triangle", 720);
-      }
-    }
-
     function normalizeAngle(a) {
       while (a > Math.PI) a -= Math.PI * 2;
       while (a < -Math.PI) a += Math.PI * 2;
       return a;
     }
 
-    function getAiTurn(s) {
-      const head = s.segs[0];
-      let target = null;
-      let bestDist = Infinity;
-      for (let i = 0; i < foods.length; i++) {
-        const d = Math.hypot(foods[i].x - head.x, foods[i].y - head.y);
-        if (d < bestDist) {
-          bestDist = d;
-          target = foods[i];
-        }
-      }
-
-      let desired = s.ang;
-      if (target) {
-        desired = Math.atan2(target.y - head.y, target.x - head.x);
-      }
-
-      const margin = 24;
-      if (head.x < margin) desired = 0;
-      else if (head.x > W - margin) desired = Math.PI;
-      if (head.y < margin) desired = Math.PI * 0.5;
-      else if (head.y > H - margin) desired = -Math.PI * 0.5;
-
-      const probeX = head.x + Math.cos(s.ang) * 22;
-      const probeY = head.y + Math.sin(s.ang) * 22;
-      const nearSkull = skulls.some(function (sk) {
-        return Math.hypot(probeX - sk.x, probeY - sk.y) < sk.r + 14;
-      });
-      if (hitWall(probeX, probeY, s.r + 6) || nearSkull) {
-        desired = normalizeAngle(s.ang + Math.PI * 0.65);
-      }
-
-      const diff = normalizeAngle(desired - s.ang);
-      if (Math.abs(diff) < 0.08) return 0;
-      return diff > 0 ? 1 : -1;
-    }
-
-    document.getElementById("b-play").addEventListener("click", startGame);
-    document.getElementById("b-cfg").addEventListener("click", openCfg);
-    document.getElementById("b-cfg-top").addEventListener("click", openCfg);
-    document.getElementById("b-done").addEventListener("click", closeCfg);
-    document.getElementById("b-next-lvl").addEventListener("click", nextLevel);
-
-    document.getElementById("o-diff").addEventListener("click", function (e) {
-      dIdx = (dIdx + 1) % diffs.length;
-      e.currentTarget.textContent = "Dificultad: " + diffs[dIdx].label;
-      initLvl(lvl, false);
-    });
-
-    document.getElementById("o-theme").addEventListener("click", function (e) {
-      const dark = document.body.classList.toggle("dark");
-      e.currentTarget.textContent = "Pantalla: " + (dark ? "Oscura" : "Clara");
-    });
-
-    document.getElementById("o-snd").addEventListener("click", function (e) {
-      snd = !snd;
-      e.currentTarget.textContent = "Sonido: " + (snd ? "Sí" : "No");
-      if (snd) playFx(740, 0.08, "triangle", 980);
-    });
-
-    const bLeft = document.getElementById("b-left");
-    const bRight = document.getElementById("b-right");
-    bLeft.addEventListener("pointerdown", function () { ensureAudio(); turn = -1; });
-    bLeft.addEventListener("pointerup", function () { turn = 0; });
-    bLeft.addEventListener("pointerleave", function () { turn = 0; });
-    bLeft.addEventListener("pointercancel", function () { turn = 0; });
-
-    bRight.addEventListener("pointerdown", function () { ensureAudio(); turn = 1; });
-    bRight.addEventListener("pointerup", function () { turn = 0; });
-    bRight.addEventListener("pointerleave", function () { turn = 0; });
-    bRight.addEventListener("pointercancel", function () { turn = 0; });
-
-    document.getElementById("b-split").addEventListener("click", splitSnakes);
-
-    c.addEventListener("click", function () {
-      if (state === "over") startGame();
-      else if (state === "levelclear") nextLevel();
-    });
-
-    function step(dt) {
-      if (state !== "play") return;
-      const cfg = diffs[dIdx];
-      const spd = cfg.spd + (lvl - 1) * 4;
-
-      for (let i = 0; i < skulls.length; i++) {
-        const sk = skulls[i];
-        if (sk.mov) {
-          sk.y += sk.dir * cfg.move * dt;
-          if (sk.y <= sk.minY) { sk.y = sk.minY; sk.dir = 1; }
-          if (sk.y >= sk.maxY) { sk.y = sk.maxY; sk.dir = -1; }
-        }
-      }
-
-      const alive = [];
-      for (let i = 0; i < snakes.length; i++) {
-        const s = snakes[i];
-        let dir = turn;
-        if (!s.player) {
-          dir = getAiTurn(s);
-        }
-        s.ang = normalizeAngle(s.ang + dir * 3.1 * dt);
-        const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
-        const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
-
-        const hitSk = skulls.some(function (sk) {
-          return Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1;
-        });
-
-        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitWall(nx, ny, s.r) || hitSk) {
-          if (s.player) {
-            state = "over";
-            saveRec();
-            playFx(200, 0.24, "sawtooth", 65);
-            return;
-          }
-          continue;
-        }
-
-        s.segs.unshift({ x: nx, y: ny });
-        s.segs.pop();
-
-        for (let fIdx = foods.length - 1; fIdx >= 0; fIdx--) {
-          const f = foods[fIdx];
-          if (Math.hypot(nx - f.x, ny - f.y) < s.r + f.rad + 2) {
-            foods.splice(fIdx, 1);
-            addFood();
-            pts += f.val;
-            tot += f.val;
-            saveRec();
-            playFx(f.kind === "star" ? 660 : 587, 0.09, "triangle", f.kind === "star" ? 990 : 880);
-            const tail = s.segs[s.segs.length - 1];
-            for (let g = 0; g < f.grow; g++) s.segs.push({ x: tail.x, y: tail.y });
-            tPts.textContent = "Puntos: " + pts + " / 300";
-            if (pts >= 300) {
-              openLevelClear();
-              return;
-            }
-          }
-        }
-        alive.push(s);
-      }
-      snakes = alive;
-    }
-
-    function drawSkull(sk) {
-      ctx.save();
-      ctx.translate(sk.x, sk.y);
-
-      ctx.strokeStyle = "rgba(239, 68, 68, 0.45)";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, sk.r + 2.5, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(0, -1, sk.r * 0.85, Math.PI * 0.85, Math.PI * 2.15);
-      ctx.lineTo(sk.r * 0.45, sk.r * 0.85);
-      ctx.lineTo(-sk.r * 0.45, sk.r * 0.85);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = "#0f172a";
-      ctx.beginPath();
-      ctx.arc(-3, -1.5, 1.8, 0, Math.PI * 2);
-      ctx.arc(3, -1.5, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(-2.5, 3.2);
-      ctx.lineTo(-2.5, 5.5);
-      ctx.moveTo(0, 3.2);
-      ctx.lineTo(0, 5.5);
-      ctx.moveTo(2.5, 3.2);
-      ctx.lineTo(2.5, 5.5);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function drawFood(f) {
-      ctx.save();
-      ctx.translate(f.x, f.y);
-      if (f.kind === "star") {
-        ctx.fillStyle = "#f59e0b";
-        ctx.strokeStyle = "#78350f";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        for (let i = 0; i < 10; i++) {
-          const rad = i % 2 === 0 ? f.rad + 1.5 : f.rad * 0.48;
-          const a = (i * Math.PI) / 5 - Math.PI / 2;
-          if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
-          else ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = f.kind === "citrus" ? "#fb923c" : "#ef4444";
-        ctx.strokeStyle = "#0f172a";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(0, 0, f.rad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#16a34a";
-        ctx.fillRect(-1.1, -f.rad - 2.8, 2.2, 3.2);
-      }
-      ctx.restore();
-    }
-
-    function render() {
-      ctx.clearRect(0, 0, W, H);
-      const dark = document.body.classList.contains("dark");
-
-      ctx.fillStyle = dark ? "#475569" : "#64748b";
-      for (let i = 0; i < walls.length; i++) {
-        const w = walls[i];
-        ctx.fillRect(w.x, w.y, w.w, w.h);
-      }
-
-      for (let i = 0; i < foods.length; i++) drawFood(foods[i]);
-      for (let i = 0; i < skulls.length; i++) drawSkull(skulls[i]);
-
-      for (let sIdx = 0; sIdx < snakes.length; sIdx++) {
-        const s = snakes[sIdx];
-        for (let i = 0; i < s.segs.length; i++) {
-          ctx.fillStyle = "hsl(" + s.hue + ", 82%, " + (i === 0 ? 40 : 52) + "%)";
-          ctx.beginPath();
-          ctx.arc(s.segs[i].x, s.segs[i].y, s.r * (1 - i / (s.segs.length * 2.4)), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      if (state === "over") {
-        ctx.fillStyle = dark ? "rgba(14,17,22,0.85)" : "rgba(241,245,249,0.88)";
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = dark ? "#f8fafc" : "#0f172a";
-        ctx.font = "bold 19px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("¡Chocaste!", W / 2, H / 2 - 10);
-        ctx.font = "13px system-ui, sans-serif";
-        ctx.fillText("Toca aquí o en Dividir para reiniciar", W / 2, H / 2 + 16);
-      }
-    }
-
-    function loop(t) {
-      const dt = Math.min((t - prevT) / 1000 || 0.016, 0.05);
-      prevT = t;
-      step(dt);
-      render();
-      requestAnimationFrame(loop);
-    }
-
-    showRec();
-    initLvl(1, true);
-    requestAnimationFrame(loop);
-  </script>
-</body>
-</html>
+    function isAngleSafe(x, y, ang, r, lookDist) {
+      for (let stepD = 10; stepD <= lookDist;
