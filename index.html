@@ -10,9 +10,9 @@ body {
   margin: 0;
   min-height: 100vh;
   padding: 10px;
-  background: #eef2f6;
+  background: linear-gradient(160deg, #e0f2fe 0%, #f1f5f9 55%, #e2e8f0 100%);
   color: #0f172a;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -20,7 +20,10 @@ body {
   overflow: hidden;
   touch-action: manipulation;
 }
-body.dark { background: #0e1116; color: #f8fafc; }
+body.dark {
+  background: linear-gradient(160deg, #090d16 0%, #111827 60%, #0b1120 100%);
+  color: #f8fafc;
+}
 .bar {
   width: 100%;
   max-width: 360px;
@@ -30,29 +33,38 @@ body.dark { background: #0e1116; color: #f8fafc; }
   gap: 6px;
   margin-bottom: 8px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.2px;
 }
 .pill {
   background: #ffffff;
   color: #0f172a;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #0284c7;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 6px 11px;
+  box-shadow: 0 3px 0 rgba(2, 132, 199, 0.22);
 }
-body.dark .pill { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
+body.dark .pill {
+  background: #172033;
+  color: #f8fafc;
+  border-color: #38bdf8;
+  box-shadow: 0 3px 0 rgba(14, 165, 233, 0.25);
+}
 #box {
   position: relative;
   width: 100%;
   max-width: 360px;
   aspect-ratio: 300 / 340;
-  border-radius: 16px;
+  border-radius: 18px;
   overflow: hidden;
-  border: 2px solid #94a3b8;
-  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #e2e8f0 100%);
+  border: 3px solid #0284c7;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18), inset 0 0 18px rgba(2, 132, 199, 0.14);
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #e0f2fe 100%);
 }
 body.dark #box {
-  background: radial-gradient(circle at 50% 35%, #19222f 0%, #10151d 100%);
-  border-color: #334155;
+  background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0b1120 100%);
+  border-color: #38bdf8;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 0 22px rgba(56, 189, 248, 0.18);
 }
 canvas { width: 100%; height: 100%; display: block; }
 #cfg-panel {
@@ -61,14 +73,15 @@ canvas { width: 100%; height: 100%; display: block; }
   max-width: 360px;
   margin-top: 8px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #cbd5e1;
   gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
 }
-body.dark #cfg-panel { background: #1b222c; border-color: #2e3948; }
+body.dark #cfg-panel { background: #172033; border-color: #334155; }
 #cfg-panel.open { display: flex; }
 .pads {
   width: 100%;
@@ -79,18 +92,31 @@ body.dark #cfg-panel { background: #1b222c; border-color: #2e3948; }
   gap: 8px;
 }
 button {
-  border: 1px solid #cbd5e1;
+  border: 2px solid #94a3b8;
   background: #ffffff;
   color: #0f172a;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 13px;
   cursor: pointer;
   touch-action: manipulation;
+  box-shadow: 0 3px 0 #cbd5e1;
+  transition: transform 0.08s ease;
 }
-body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
-.main { background: #0284c7; color: #ffffff; border-color: #0369a1; }
+button:active { transform: translateY(2px); box-shadow: 0 1px 0 #cbd5e1; }
+body.dark button {
+  background: #172033;
+  color: #f8fafc;
+  border-color: #334155;
+  box-shadow: 0 3px 0 #0f172a;
+}
+.main {
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  border-color: #0369a1;
+  box-shadow: 0 3px 0 #0369a1;
+}
 </style>
 </head>
 <body>
@@ -146,7 +172,11 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     var mode = "demo";
     var lvl = 1, pts = 0, tot = 0;
     var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
-    var turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4;
+    var turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4, errMsg = "";
+
+    window.onerror = function (msg) {
+      errMsg = String(msg || "Error");
+    };
 
     function getRaiderLevel() {
       return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
@@ -197,261 +227,4 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
           tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
         } else if (k === "star") {
           tone(a, t, 587.33, 0.07, "triangle", 0.15, 783.99);
-          tone(a, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
-          tone(a, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
-        } else if (k === "split") {
-          tone(a, t, 330, 0.08, "triangle", 0.14, 554.37);
-          tone(a, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
-        } else if (k === "start") {
-          tone(a, t, 392, 0.08, "triangle", 0.14, 523.25);
-          tone(a, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
-        } else if (k === "level") {
-          tone(a, t, 523.25, 0.09, "triangle", 0.15, 523.25);
-          tone(a, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
-          tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
-          tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
-        } else if (k === "alert") {
-          var boost = Math.min(240, ((rLvl || 1) - 1) * 14);
-          tone(a, t, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
-          tone(a, t + 0.08, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
-        } else if (k === "fire") {
-          tone(a, t, 360, 0.08, "sawtooth", 0.1, 140);
-        } else if (k === "warp") {
-          tone(a, t, 240, 0.11, "sine", 0.14, 720);
-          tone(a, t + 0.05, 480, 0.11, "triangle", 0.12, 960);
-        } else if (k === "hit") {
-          tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
-          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
-        } else if (k === "click") {
-          tone(a, t, 660, 0.05, "sine", 0.1, 784);
-        }
-      } catch (e) {}
-    }
-
-    function makeSnake(x, y, ang, len, hue, player) {
-      var segs = [];
-      for (var i = 0; i < len; i++) {
-        segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
-      }
-      return { segs: segs, ang: ang, hue: hue, player: player, r: 6.8, warpCd: 0 };
-    }
-
-    function hitWall(x, y, r) {
-      for (var i = 0; i < walls.length; i++) {
-        var w = walls[i];
-        var nx = Math.max(w.x, Math.min(x, w.x + w.w));
-        var ny = Math.max(w.y, Math.min(y, w.y + w.h));
-        var dx = x - nx, dy = y - ny;
-        if (dx * dx + dy * dy < r * r) return true;
-      }
-      return false;
-    }
-
-    function safeSpot(x, y, sw) {
-      if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
-      for (var s = -1; s <= 1; s++) {
-        if (hitWall(x, y + s * (sw || 0), 14)) return false;
-      }
-      for (var i = 0; i < skulls.length; i++) {
-        var sk = skulls[i];
-        if (Math.hypot(x - sk.x, y - sk.y) < 32) return false;
-      }
-      return true;
-    }
-
-    function pickPortalSpot(other) {
-      for (var i = 0; i < 50; i++) {
-        var x = 36 + Math.random() * (W - 72);
-        var y = 36 + Math.random() * (H - 72);
-        if (!safeSpot(x, y, 0)) continue;
-        if (other && Math.hypot(x - other.x, y - other.y) < 105) continue;
-        return { x: x, y: y };
-      }
-      return { x: other ? W - 45 : 45, y: H * 0.5 };
-    }
-
-    function spawnPortals() {
-      var a = pickPortalSpot(null);
-      var b = pickPortalSpot(a);
-      portals = [
-        { x: a.x, y: a.y, r: 12.5, life: 9.5, hue: 272 },
-        { x: b.x, y: b.y, r: 12.5, life: 9.5, hue: 196 }
-      ];
-      if (mode === "play") playSound("warp");
-    }
-
-    function updatePortals(dt) {
-      if (!portals || portals.length < 2) {
-        portalCd -= dt;
-        if (portalCd <= 0) spawnPortals();
-        return;
-      }
-      portals[0].life -= dt;
-      portals[1].life -= dt;
-      if (portals[0].life <= 0) {
-        portals = [];
-        portalCd = Math.max(4.5, 8.5 - lvl * 0.04);
-      }
-    }
-
-    function addFood() {
-      var r = Math.random();
-      var kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
-      var x = W / 2, y = H * 0.42;
-      for (var i = 0; i < 45; i++) {
-        var tx = 26 + Math.random() * (W - 52);
-        var ty = 26 + Math.random() * (H - 52);
-        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
-      }
-      foods.push({
-        x: x, y: y, kind: kind,
-        val: kind === "star" ? 40 : (kind === "citrus" ? 20 : 10),
-        grow: kind === "star" ? 3 : 2,
-        rad: kind === "star" ? 6.8 : 5.8
-      });
-    }
-
-    function spawnRaider() {
-      var rLvl = getRaiderLevel();
-      var fromL = Math.random() < 0.5;
-      var sx = fromL ? -16 : W + 16;
-      var sy = 75 + Math.random() * (H - 150);
-      var ang = fromL ? 0 : Math.PI;
-      var segs = [];
-      for (var i = 0; i < 14; i++) {
-        segs.push({ x: sx - Math.cos(ang) * i * 4.5, y: sy });
-      }
-      raider = {
-        segs: segs, ang: ang, hue: 348, r: 7.2,
-        rLvl: rLvl,
-        warn: 1.0, dir: fromL ? 1 : -1,
-        laneY: sy, phase: "in",
-        shotCd: Math.max(0.55, 1.35 - (rLvl - 1) * 0.045)
-      };
-      playSound("alert", rLvl);
-    }
-
-    function shootFireball(x, y, ang, spd, rLvl) {
-      var ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
-      fireballs.push({
-        x: x + Math.cos(ang) * 11,
-        y: y + Math.sin(ang) * 11,
-        vx: Math.cos(ang) * ballSpeed,
-        vy: Math.sin(ang) * ballSpeed,
-        r: 5.2
-      });
-      if (mode === "play") playSound("fire");
-    }
-
-    function updateCenterBtn() {
-      if (mode === "demo") bCenter.textContent = "▶ Jugar";
-      else if (mode === "play") bCenter.textContent = "✂ Dividir";
-      else if (mode === "pause") bCenter.textContent = "▶ Seguir";
-      else if (mode === "clear") bCenter.textContent = "▶ Otro Nivel";
-      else bCenter.textContent = "↻ Reiniciar";
-    }
-
-    function initLvl(n, resetTot) {
-      lvl = Math.min(MAX_LVL, n);
-      pts = 0;
-      if (resetTot) tot = 0;
-      turn = 0;
-      raider = null;
-      fireballs = [];
-      portals = [];
-      portalCd = 3.5;
-      raiderCd = Math.max(3.5, 8.5 - getRaiderLevel() * 0.25);
-      bPause.textContent = "Pausa";
-      snakes = [makeSnake(W / 2, H * 0.8, -Math.PI / 2, 12, 152, true)];
-      walls = lvl > 1 ? [
-        { x: 38, y: 120, w: 68, h: 12 },
-        { x: W - 106, y: 205, w: 68, h: 12 }
-      ] : [];
-      skulls = [];
-      var cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
-      var mov = lvl >= 4;
-      var sw = mov ? 36 : 0;
-      var tr = 0;
-      while (skulls.length < cnt && tr < 140) {
-        tr++;
-        var sx = 34 + Math.random() * (W - 68);
-        var sy = 44 + sw + Math.random() * Math.max(20, H - 88 - sw * 2);
-        if (safeSpot(sx, sy, sw)) {
-          skulls.push({
-            x: sx, y: sy,
-            minY: Math.max(24, sy - sw),
-            maxY: Math.min(H - 24, sy + sw),
-            dir: Math.random() < 0.5 ? -1 : 1,
-            mov: mov, r: 8.5
-          });
-        }
-      }
-      foods = [];
-      for (var i = 0; i < 5; i++) addFood();
-      saveRec();
-      tLvl.textContent = "Nivel " + lvl + " / " + MAX_LVL;
-      tPts.textContent = pts + " / 300";
-      updateCenterBtn();
-    }
-
-    function startGame() {
-      ensureAudio();
-      cfgPanel.classList.remove("open");
-      mode = "play";
-      initLvl(1, true);
-      playSound("start");
-    }
-
-    function togglePause() {
-      ensureAudio();
-      if (mode === "play") {
-        mode = "pause";
-        turn = 0;
-        bPause.textContent = "Seguir";
-        updateCenterBtn();
-        playSound("click");
-      } else if (mode === "pause") {
-        mode = "play";
-        bPause.textContent = "Pausa";
-        updateCenterBtn();
-        playSound("click");
-      }
-    }
-
-    function norm(a) {
-      while (a > Math.PI) a -= Math.PI * 2;
-      while (a < -Math.PI) a += Math.PI * 2;
-      return a;
-    }
-
-    function safeAng(x, y, a, r, dist) {
-      for (var d = 10; d <= dist; d += 8) {
-        var px = x + Math.cos(a) * d;
-        var py = y + Math.sin(a) * d;
-        if (px < r + 14 || px > W - r - 14 || py < r + 14 || py > H - r - 14 || hitWall(px, py, r + 7)) return false;
-        for (var i = 0; i < skulls.length; i++) {
-          var sk = skulls[i];
-          if (Math.hypot(px - sk.x, py - sk.y) < sk.r + r + 13) return false;
-        }
-      }
-      return true;
-    }
-
-    function pickAng(x, y, pref, r) {
-      var list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
-      for (var i = 0; i < list.length; i++) {
-        var a = norm(list[i]);
-        if (safeAng(x, y, a, r, 42)) return a;
-      }
-      return norm(pref);
-    }
-
-    function splitSnakes() {
-      var next = [];
-      var ok = false;
-      for (var i = 0; i < snakes.length; i++) {
-        var s = snakes[i];
-        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
-          var part = s.segs.splice(Math.floor(s.segs.length / 2));
-          next.push(s);
-          next.push(makeSnake(part[0].x, part
+          tone(a, t + 0.055, 88
