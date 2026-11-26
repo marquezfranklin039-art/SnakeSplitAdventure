@@ -146,7 +146,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     let mode = "demo";
     let lvl = 1, pts = 0, tot = 0;
     let snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
-    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 5;
+    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4, lastErr = "";
 
     function getRaiderLevel() {
       return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
@@ -261,30 +261,30 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
         const x = 36 + Math.random() * (W - 72);
         const y = 36 + Math.random() * (H - 72);
         if (!safeSpot(x, y, 0)) continue;
-        if (other && Math.hypot(x - other.x, y - other.y) < 110) continue;
+        if (other && Math.hypot(x - other.x, y - other.y) < 105) continue;
         return { x, y };
       }
-      return { x: other ? W - 44 : 44, y: H * 0.5 };
+      return { x: other ? W - 45 : 45, y: H * 0.5 };
     }
 
     function spawnPortals() {
       const a = pickPortalSpot(null);
       const b = pickPortalSpot(a);
-      const life = 9.5;
       portals = [
-        { x: a.x, y: a.y, r: 12.5, life, maxLife: life, hue: 272 },
-        { x: b.x, y: b.y, r: 12.5, life, maxLife: life, hue: 196 }
+        { x: a.x, y: a.y, r: 12.5, life: 9.5, hue: 272 },
+        { x: b.x, y: b.y, r: 12.5, life: 9.5, hue: 196 }
       ];
       if (mode === "play") playSound("warp");
     }
 
     function updatePortals(dt) {
-      if (!portals.length) {
+      if (!portals || portals.length < 2) {
         portalCd -= dt;
         if (portalCd <= 0) spawnPortals();
         return;
       }
-      for (const p of portals) p.life -= dt;
+      portals[0].life -= dt;
+      portals[1].life -= dt;
       if (portals[0].life <= 0) {
         portals = [];
         portalCd = Math.max(4.5, 8.5 - lvl * 0.04);
@@ -384,4 +384,104 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
         }
       }
       foods = [];
-      for (let i = 0; i < 5
+      for (let i = 0; i < 5; i++) addFood();
+      saveRec();
+      tLvl.textContent = "Nivel " + lvl + " / " + MAX_LVL;
+      tPts.textContent = pts + " / 300";
+      updateCenterBtn();
+    }
+
+    function startGame() {
+      ensureAudio();
+      cfgPanel.classList.remove("open");
+      mode = "play";
+      initLvl(1, true);
+      playSound("start");
+    }
+
+    function togglePause() {
+      ensureAudio();
+      if (mode === "play") {
+        mode = "pause";
+        turn = 0;
+        bPause.textContent = "Seguir";
+        updateCenterBtn();
+        playSound("click");
+      } else if (mode === "pause") {
+        mode = "play";
+        bPause.textContent = "Pausa";
+        updateCenterBtn();
+        playSound("click");
+      }
+    }
+
+    function norm(a) {
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      return a;
+    }
+
+    function safeAng(x, y, a, r, dist) {
+      for (let d = 10; d <= dist; d += 8) {
+        const px = x + Math.cos(a) * d;
+        const py = y + Math.sin(a) * d;
+        if (px < r + 14 || px > W - r - 14 || py < r + 14 || py > H - r - 14 || hitWall(px, py, r + 7)) return false;
+        for (const sk of skulls) {
+          if (Math.hypot(px - sk.x, py - sk.y) < sk.r + r + 13) return false;
+        }
+      }
+      return true;
+    }
+
+    function pickAng(x, y, pref, r) {
+      const list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
+      for (const cnd of list) {
+        const a = norm(cnd);
+        if (safeAng(x, y, a, r, 42)) return a;
+      }
+      return norm(pref);
+    }
+
+    function splitSnakes() {
+      const next = [];
+      let ok = false;
+      for (const s of snakes) {
+        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
+          const part = s.segs.splice(Math.floor(s.segs.length / 2));
+          next.push(s);
+          next.push(makeSnake(part[0].x, part[0].y, pickAng(part[0].x, part[0].y, s.ang + Math.PI * 0.5, s.r), part.length, (s.hue + 65) % 360, false));
+          ok = true;
+        } else {
+          next.push(s);
+        }
+      }
+      if (ok) { snakes = next; playSound("split"); }
+    }
+
+    function handleCenterAction() {
+      ensureAudio();
+      if (mode === "demo" || mode === "over" || mode === "win") {
+        startGame();
+      } else if (mode === "pause") {
+        togglePause();
+      } else if (mode === "clear") {
+        mode = "play";
+        initLvl(lvl + 1, false);
+        playSound("start");
+      } else if (mode === "play") {
+        splitSnakes();
+      }
+    }
+
+    function aiTurn(s) {
+      const h = s.segs[0];
+      let tg = null, bs = Infinity;
+      for (const f of foods) {
+        const sc = Math.hypot(f.x - h.x, f.y - h.y) * (f.kind === "star" ? 0.65 : (f.kind === "citrus" ? 0.85 : 1));
+        if (sc < bs) { bs = sc; tg = f; }
+      }
+      let des = tg ? Math.atan2(tg.y - h.y, tg.x - h.x) : Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
+      if (!safeAng(h.x, h.y, des, s.r, 34)) {
+        let ok = false;
+        for (let o = 0.35; o <= Math.PI; o += 0.35) {
+          const l = norm(des - o), r = norm(des +
