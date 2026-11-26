@@ -10,7 +10,7 @@ body {
   margin: 0;
   min-height: 100vh;
   padding: 10px;
-  background: linear-gradient(160deg, #e0f2fe 0%, #f1f5f9 55%, #e2e8f0 100%);
+  background: linear-gradient(160deg, #dbeafe 0%, #f1f5f9 55%, #e2e8f0 100%);
   color: #0f172a;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   display: flex;
@@ -34,7 +34,6 @@ body.dark {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.2px;
 }
 .pill {
   background: #ffffff;
@@ -42,7 +41,7 @@ body.dark {
   border: 2px solid #0284c7;
   border-radius: 999px;
   padding: 6px 11px;
-  box-shadow: 0 3px 0 rgba(2, 132, 199, 0.22);
+  box-shadow: 0 3px 0 rgba(2, 132, 199, 0.25);
 }
 body.dark .pill {
   background: #172033;
@@ -58,13 +57,13 @@ body.dark .pill {
   border-radius: 18px;
   overflow: hidden;
   border: 3px solid #0284c7;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18), inset 0 0 18px rgba(2, 132, 199, 0.14);
-  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #e0f2fe 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  background: #f8fafc;
 }
 body.dark #box {
-  background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0b1120 100%);
+  background: #0f172a;
   border-color: #38bdf8;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 0 22px rgba(56, 189, 248, 0.18);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
 }
 canvas { width: 100%; height: 100%; display: block; }
 #cfg-panel {
@@ -79,7 +78,6 @@ canvas { width: 100%; height: 100%; display: block; }
   gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
 }
 body.dark #cfg-panel { background: #172033; border-color: #334155; }
 #cfg-panel.open { display: flex; }
@@ -102,9 +100,8 @@ button {
   cursor: pointer;
   touch-action: manipulation;
   box-shadow: 0 3px 0 #cbd5e1;
-  transition: transform 0.08s ease;
 }
-button:active { transform: translateY(2px); box-shadow: 0 1px 0 #cbd5e1; }
+button:active { transform: translateY(2px); }
 body.dark button {
   background: #172033;
   color: #f8fafc;
@@ -147,9 +144,16 @@ body.dark button {
 
   <script>
     var MAX_LVL = 100;
+    var W = 300, H = 340;
     var c = document.getElementById("c");
     var ctx = c.getContext("2d");
-    var W = 300, H = 340;
+
+    ctx.fillStyle = "#e0f2fe";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#0284c7";
+    ctx.font = "900 22px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("SNAKE SPLIT", W / 2, H / 2);
 
     var tLvl = document.getElementById("t-lvl");
     var tPts = document.getElementById("t-pts");
@@ -165,18 +169,19 @@ body.dark button {
 
     var dIdx = 1, snd = true, best = 0, bestLvl = 1;
     try {
-      best = Number(localStorage.getItem("ss_rec") || 0) || 0;
-      bestLvl = Math.min(MAX_LVL, Number(localStorage.getItem("ss_lvl") || 1) || 1);
+      best = Number(localStorage.getItem("ss_rec")) || 0;
+      bestLvl = Math.min(MAX_LVL, Number(localStorage.getItem("ss_lvl")) || 1);
     } catch (e) {}
 
     var mode = "demo";
     var lvl = 1, pts = 0, tot = 0;
     var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
-    var turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4, errMsg = "";
+    var turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 3.5;
 
-    window.onerror = function (msg) {
-      errMsg = String(msg || "Error");
-    };
+    function dist(x1, y1, x2, y2) {
+      var dx = x1 - x2, dy = y1 - y2;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
 
     function getRaiderLevel() {
       return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
@@ -227,4 +232,47 @@ body.dark button {
           tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
         } else if (k === "star") {
           tone(a, t, 587.33, 0.07, "triangle", 0.15, 783.99);
-          tone(a, t + 0.055, 88
+          tone(a, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
+          tone(a, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
+        } else if (k === "split") {
+          tone(a, t, 330, 0.08, "triangle", 0.14, 554.37);
+          tone(a, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
+        } else if (k === "start") {
+          tone(a, t, 392, 0.08, "triangle", 0.14, 523.25);
+          tone(a, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
+        } else if (k === "level") {
+          tone(a, t, 523.25, 0.09, "triangle", 0.15, 523.25);
+          tone(a, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
+          tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
+          tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
+        } else if (k === "alert") {
+          var boost = Math.min(240, ((rLvl || 1) - 1) * 14);
+          tone(a, t, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+          tone(a, t + 0.08, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+        } else if (k === "fire") {
+          tone(a, t, 360, 0.08, "sawtooth", 0.1, 140);
+        } else if (k === "warp") {
+          tone(a, t, 240, 0.11, "sine", 0.14, 720);
+          tone(a, t + 0.05, 480, 0.11, "triangle", 0.12, 960);
+        } else if (k === "hit") {
+          tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
+          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
+        } else if (k === "click") {
+          tone(a, t, 660, 0.05, "sine", 0.1, 784);
+        }
+      } catch (e) {}
+    }
+
+    function makeSnake(x, y, ang, len, hue, player) {
+      var segs = [];
+      for (var i = 0; i < len; i++) {
+        segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
+      }
+      return { segs: segs, ang: ang, hue: hue, player: player, r: 6.8, warpCd: 0 };
+    }
+
+    function hitWall(x, y, r) {
+      for (var i = 0; i < walls.length; i++) {
+        var w = walls[i];
+        var nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        var ny = Math.max(w.y, Math
