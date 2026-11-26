@@ -95,7 +95,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
 </head>
 <body>
   <div class="bar">
-    <span class="pill" id="t-lvl">Nivel 1</span>
+    <span class="pill" id="t-lvl">Nivel 1 / 100</span>
     <span class="pill" id="t-pts">0 / 300</span>
     <div style="display:flex;gap:6px;">
       <button type="button" id="b-pause">Pausa</button>
@@ -120,6 +120,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
   </div>
 
   <script>
+    const MAX_LVL = 100;
     const c = document.getElementById("c");
     const ctx = c.getContext("2d");
     const W = 300, H = 340;
@@ -139,17 +140,21 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     let dIdx = 1, snd = true, best = 0, bestLvl = 1;
     try {
       best = Number(localStorage.getItem("ss_rec") || 0) || 0;
-      bestLvl = Number(localStorage.getItem("ss_lvl") || 1) || 1;
+      bestLvl = Math.min(MAX_LVL, Number(localStorage.getItem("ss_lvl") || 1) || 1);
     } catch (_) {}
 
-    let mode = "demo"; // demo | play | pause | clear | over
+    let mode = "demo";
     let lvl = 1, pts = 0, tot = 0;
-    let snakes = [], walls = [], skulls = [], foods = [];
-    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7;
+    let snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
+    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 5;
+
+    function getRaiderLevel() {
+      return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
+    }
 
     function saveRec() {
       if (tot > best) best = tot;
-      if (lvl > bestLvl) bestLvl = lvl;
+      if (lvl > bestLvl) bestLvl = Math.min(MAX_LVL, lvl);
       try {
         localStorage.setItem("ss_rec", String(best));
         localStorage.setItem("ss_lvl", String(bestLvl));
@@ -181,7 +186,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       o.stop(t + d + 0.02);
     }
 
-    function playSound(k) {
+    function playSound(k, rLvl) {
       if (!snd) return;
       const a = ensureAudio();
       if (!a) return;
@@ -206,8 +211,14 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
           tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
           tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
         } else if (k === "alert") {
-          tone(a, t, 440, 0.06, "sawtooth", 0.1, 587.33);
-          tone(a, t + 0.08, 440, 0.06, "sawtooth", 0.1, 587.33);
+          const boost = Math.min(240, ((rLvl || 1) - 1) * 14);
+          tone(a, t, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+          tone(a, t + 0.08, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+        } else if (k === "fire") {
+          tone(a, t, 360, 0.08, "sawtooth", 0.1, 140);
+        } else if (k === "warp") {
+          tone(a, t, 240, 0.11, "sine", 0.14, 720);
+          tone(a, t + 0.05, 480, 0.11, "triangle", 0.12, 960);
         } else if (k === "hit") {
           tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
           tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
@@ -222,7 +233,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       for (let i = 0; i < len; i++) {
         segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
       }
-      return { segs, ang, hue, player, r: 6.8 };
+      return { segs, ang, hue, player, r: 6.8, warpCd: 0 };
     }
 
     function hitWall(x, y, r) {
@@ -245,6 +256,41 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       return true;
     }
 
+    function pickPortalSpot(other) {
+      for (let i = 0; i < 50; i++) {
+        const x = 36 + Math.random() * (W - 72);
+        const y = 36 + Math.random() * (H - 72);
+        if (!safeSpot(x, y, 0)) continue;
+        if (other && Math.hypot(x - other.x, y - other.y) < 110) continue;
+        return { x, y };
+      }
+      return { x: other ? W - 44 : 44, y: H * 0.5 };
+    }
+
+    function spawnPortals() {
+      const a = pickPortalSpot(null);
+      const b = pickPortalSpot(a);
+      const life = 9.5;
+      portals = [
+        { x: a.x, y: a.y, r: 12.5, life, maxLife: life, hue: 272 },
+        { x: b.x, y: b.y, r: 12.5, life, maxLife: life, hue: 196 }
+      ];
+      if (mode === "play") playSound("warp");
+    }
+
+    function updatePortals(dt) {
+      if (!portals.length) {
+        portalCd -= dt;
+        if (portalCd <= 0) spawnPortals();
+        return;
+      }
+      for (const p of portals) p.life -= dt;
+      if (portals[0].life <= 0) {
+        portals = [];
+        portalCd = Math.max(4.5, 8.5 - lvl * 0.04);
+      }
+    }
+
     function addFood() {
       const r = Math.random();
       const kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
@@ -263,6 +309,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function spawnRaider() {
+      const rLvl = getRaiderLevel();
       const fromL = Math.random() < 0.5;
       const sx = fromL ? -16 : W + 16;
       const sy = 75 + Math.random() * (H - 150);
@@ -273,10 +320,24 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       }
       raider = {
         segs, ang, hue: 348, r: 7.2,
+        rLvl,
         warn: 1.0, dir: fromL ? 1 : -1,
-        laneY: sy, phase: "in"
+        laneY: sy, phase: "in",
+        shotCd: Math.max(0.55, 1.35 - (rLvl - 1) * 0.045)
       };
-      playSound("alert");
+      playSound("alert", rLvl);
+    }
+
+    function shootFireball(x, y, ang, spd, rLvl) {
+      const ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
+      fireballs.push({
+        x: x + Math.cos(ang) * 11,
+        y: y + Math.sin(ang) * 11,
+        vx: Math.cos(ang) * ballSpeed,
+        vy: Math.sin(ang) * ballSpeed,
+        r: 5.2
+      });
+      if (mode === "play") playSound("fire");
     }
 
     function updateCenterBtn() {
@@ -288,12 +349,15 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function initLvl(n, resetTot) {
-      lvl = n;
+      lvl = Math.min(MAX_LVL, n);
       pts = 0;
       if (resetTot) tot = 0;
       turn = 0;
       raider = null;
-      raiderCd = Math.max(4.5, 8.5 - lvl * 0.5);
+      fireballs = [];
+      portals = [];
+      portalCd = 3.5;
+      raiderCd = Math.max(3.5, 8.5 - getRaiderLevel() * 0.25);
       bPause.textContent = "Pausa";
       snakes = [makeSnake(W / 2, H * 0.8, -Math.PI / 2, 12, 152, true)];
       walls = lvl > 1 ? [
@@ -320,461 +384,4 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
         }
       }
       foods = [];
-      for (let i = 0; i < 5; i++) addFood();
-      saveRec();
-      tLvl.textContent = "Nivel " + lvl;
-      tPts.textContent = pts + " / 300";
-      updateCenterBtn();
-    }
-
-    function startGame() {
-      ensureAudio();
-      cfgPanel.classList.remove("open");
-      mode = "play";
-      initLvl(1, true);
-      playSound("start");
-    }
-
-    function togglePause() {
-      ensureAudio();
-      if (mode === "play") {
-        mode = "pause";
-        turn = 0;
-        bPause.textContent = "Seguir";
-        updateCenterBtn();
-        playSound("click");
-      } else if (mode === "pause") {
-        mode = "play";
-        bPause.textContent = "Pausa";
-        updateCenterBtn();
-        playSound("click");
-      }
-    }
-
-    function norm(a) {
-      while (a > Math.PI) a -= Math.PI * 2;
-      while (a < -Math.PI) a += Math.PI * 2;
-      return a;
-    }
-
-    function safeAng(x, y, a, r, dist) {
-      for (let d = 10; d <= dist; d += 8) {
-        const px = x + Math.cos(a) * d;
-        const py = y + Math.sin(a) * d;
-        if (px < r + 14 || px > W - r - 14 || py < r + 14 || py > H - r - 14 || hitWall(px, py, r + 7)) return false;
-        for (const sk of skulls) {
-          if (Math.hypot(px - sk.x, py - sk.y) < sk.r + r + 13) return false;
-        }
-      }
-      return true;
-    }
-
-    function pickAng(x, y, pref, r) {
-      const list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
-      for (const cnd of list) {
-        const a = norm(cnd);
-        if (safeAng(x, y, a, r, 42)) return a;
-      }
-      return norm(pref);
-    }
-
-    function splitSnakes() {
-      const next = [];
-      let ok = false;
-      for (const s of snakes) {
-        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
-          const part = s.segs.splice(Math.floor(s.segs.length / 2));
-          next.push(s);
-          next.push(makeSnake(part[0].x, part[0].y, pickAng(part[0].x, part[0].y, s.ang + Math.PI * 0.5, s.r), part.length, (s.hue + 65) % 360, false));
-          ok = true;
-        } else {
-          next.push(s);
-        }
-      }
-      if (ok) { snakes = next; playSound("split"); }
-    }
-
-    function handleCenterAction() {
-      ensureAudio();
-      if (mode === "demo" || mode === "over") {
-        startGame();
-      } else if (mode === "pause") {
-        togglePause();
-      } else if (mode === "clear") {
-        mode = "play";
-        initLvl(lvl + 1, false);
-        playSound("start");
-      } else if (mode === "play") {
-        splitSnakes();
-      }
-    }
-
-    function aiTurn(s) {
-      const h = s.segs[0];
-      let tg = null, bs = Infinity;
-      for (const f of foods) {
-        const sc = Math.hypot(f.x - h.x, f.y - h.y) * (f.kind === "star" ? 0.65 : (f.kind === "citrus" ? 0.85 : 1));
-        if (sc < bs) { bs = sc; tg = f; }
-      }
-      let des = tg ? Math.atan2(tg.y - h.y, tg.x - h.x) : Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
-      if (!safeAng(h.x, h.y, des, s.r, 34)) {
-        let ok = false;
-        for (let o = 0.35; o <= Math.PI; o += 0.35) {
-          const l = norm(des - o), r = norm(des + o);
-          if (safeAng(h.x, h.y, l, s.r, 34)) { des = l; ok = true; break; }
-          if (safeAng(h.x, h.y, r, s.r, 34)) { des = r; ok = true; break; }
-        }
-        if (!ok) des = Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
-      }
-      const df = norm(des - s.ang);
-      return Math.abs(df) < 0.06 ? 0 : (df > 0 ? 1 : -1);
-    }
-
-    function updateRaider(dt, spd) {
-      if (!raider) { raiderCd -= dt; if (raiderCd <= 0) spawnRaider(); return false; }
-      if (raider.warn > 0) { raider.warn -= dt; return false; }
-      const rs = spd * 1.32, h = raider.segs[0];
-      let nx = h.x, ny = h.y;
-      if (raider.phase === "in") {
-        raider.ang = raider.dir > 0 ? 0 : Math.PI;
-        nx = h.x + raider.dir * rs * dt;
-        if ((raider.dir > 0 && nx >= W - 26) || (raider.dir < 0 && nx <= 26)) {
-          raider.phase = "loop";
-          raider.rad = 52;
-          raider.cx = Math.min(W - 74, Math.max(74, nx - raider.dir * 52));
-          raider.cy = Math.min(H - 74, Math.max(74, ny));
-          raider.la = Math.atan2(ny - raider.cy, nx - raider.cx);
-          raider.sa = raider.la;
-        }
-      } else if (raider.phase === "loop") {
-        raider.la += (rs / raider.rad) * raider.dir * dt;
-        nx = raider.cx + Math.cos(raider.la) * raider.rad;
-        ny = raider.cy + Math.sin(raider.la) * raider.rad;
-        raider.ang = norm(raider.la + (raider.dir > 0 ? Math.PI * 0.5 : -Math.PI * 0.5));
-        if (Math.abs(raider.la - raider.sa) >= Math.PI * 4) {
-          raider.phase = "out";
-          raider.ang = raider.dir > 0 ? 0 : Math.PI;
-        }
-      } else {
-        raider.ang = raider.dir > 0 ? 0 : Math.PI;
-        nx = h.x + raider.dir * rs * dt;
-        if (nx < -36 || nx > W + 36) {
-          raider = null;
-          raiderCd = Math.max(5.5, 9.5 - lvl * 0.4);
-          return false;
-        }
-      }
-      raider.segs.unshift({ x: nx, y: ny });
-      raider.segs.pop();
-      for (const s of snakes) {
-        if (!s.player) continue;
-        const ph = s.segs[0];
-        for (let k = 0; k < raider.segs.length; k++) {
-          const sg = raider.segs[k];
-          if (Math.hypot(ph.x - sg.x, ph.y - sg.y) < s.r + (k === 0 ? raider.r : raider.r * 0.82) - 1) {
-            mode = "over";
-            saveRec();
-            updateCenterBtn();
-            playSound("hit");
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-
-    function onTap(el, fn) {
-      let lock = 0;
-      const fire = function () {
-        const now = Date.now();
-        if (now - lock < 220) return;
-        lock = now;
-        fn();
-      };
-      el.addEventListener("touchstart", fire, { passive: true });
-      el.addEventListener("click", fire);
-    }
-
-    onTap(bCenter, handleCenterAction);
-    onTap(bPause, togglePause);
-    onTap(document.getElementById("b-cfg"), function () {
-      ensureAudio();
-      cfgPanel.classList.toggle("open");
-      playSound("click");
-    });
-    onTap(document.getElementById("o-diff"), function () {
-      dIdx = (dIdx + 1) % diffs.length;
-      document.getElementById("o-diff").textContent = "Dificultad: " + diffs[dIdx].label;
-      if (mode === "play") initLvl(lvl, false);
-    });
-    onTap(document.getElementById("o-theme"), function () {
-      const d = document.body.classList.toggle("dark");
-      document.getElementById("o-theme").textContent = "Pantalla: " + (d ? "Oscura" : "Clara");
-    });
-    onTap(document.getElementById("o-snd"), function () {
-      snd = !snd;
-      document.getElementById("o-snd").textContent = "Sonido: " + (snd ? "Sí" : "No");
-      if (snd) playSound("click");
-    });
-    onTap(c, function () {
-      if (mode !== "play") handleCenterAction();
-    });
-
-    const bL = document.getElementById("b-left");
-    const bR = document.getElementById("b-right");
-    bL.addEventListener("touchstart", function () { ensureAudio(); turn = -1; }, { passive: true });
-    bL.addEventListener("touchend", function () { turn = 0; }, { passive: true });
-    bL.addEventListener("mousedown", function () { ensureAudio(); turn = -1; });
-    bL.addEventListener("mouseup", function () { turn = 0; });
-
-    bR.addEventListener("touchstart", function () { ensureAudio(); turn = 1; }, { passive: true });
-    bR.addEventListener("touchend", function () { turn = 0; }, { passive: true });
-    bR.addEventListener("mousedown", function () { ensureAudio(); turn = 1; });
-    bR.addEventListener("mouseup", function () { turn = 0; });
-
-    function step(dt) {
-      if (mode !== "play" && mode !== "demo") return;
-      const cfg = diffs[dIdx], spd = cfg.spd + (lvl - 1) * 4;
-      if (mode === "play" && updateRaider(dt, spd)) return;
-      for (const sk of skulls) {
-        if (sk.mov) {
-          sk.y += sk.dir * cfg.move * dt;
-          if (sk.y <= sk.minY) { sk.y = sk.minY; sk.dir = 1; }
-          if (sk.y >= sk.maxY) { sk.y = sk.maxY; sk.dir = -1; }
-        }
-      }
-      const alive = [];
-      for (const s of snakes) {
-        const isAuto = mode === "demo" || !s.player;
-        const dir = isAuto ? aiTurn(s) : turn;
-        s.ang = norm(s.ang + dir * (isAuto ? 4.2 : 3.1) * dt);
-        const nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
-        const ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
-        const hitSk = skulls.some(sk => Math.hypot(nx - sk.x, ny - sk.y) < s.r + sk.r - 1);
-        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitWall(nx, ny, s.r) || hitSk) {
-          if (mode === "demo") {
-            initLvl(1, true);
-            return;
-          }
-          if (s.player) {
-            mode = "over";
-            saveRec();
-            updateCenterBtn();
-            playSound("hit");
-            return;
-          }
-          continue;
-        }
-        s.segs.unshift({ x: nx, y: ny });
-        s.segs.pop();
-        for (let i = foods.length - 1; i >= 0; i--) {
-          const f = foods[i];
-          if (Math.hypot(nx - f.x, ny - f.y) < s.r + f.rad + 2) {
-            foods.splice(i, 1);
-            addFood();
-            if (mode === "play") {
-              pts += f.val;
-              tot += f.val;
-              saveRec();
-              playSound(f.kind === "star" ? "star" : "eat");
-              const tl = s.segs[s.segs.length - 1];
-              for (let g = 0; g < f.grow; g++) s.segs.push({ x: tl.x, y: tl.y });
-              tPts.textContent = pts + " / 300";
-              if (pts >= 300) {
-                mode = "clear";
-                saveRec();
-                updateCenterBtn();
-                playSound("level");
-                return;
-              }
-            }
-          }
-        }
-        alive.push(s);
-      }
-      snakes = alive;
-    }
-
-    function drawSnake(s) {
-      const segs = s.segs;
-      if (!segs || !segs.length) return;
-      for (let i = segs.length - 1; i >= 1; i--) {
-        const p = segs[i], rt = i / segs.length, rad = Math.max(2.3, s.r * (1.02 - rt * 0.68));
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.fillStyle = "hsl(" + s.hue + ",78%," + (44 + rt * 12) + "%)";
-        ctx.strokeStyle = "hsl(" + s.hue + ",85%,22%)";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(0, 0, rad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        if (i % 2 === 1 && rad > 3.2) {
-          ctx.fillStyle = "hsl(" + ((s.hue + 24) % 360) + ",85%,32%)";
-          ctx.beginPath();
-          ctx.arc(0, 0, rad * 0.45, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      }
-      const h = segs[0];
-      ctx.save();
-      ctx.translate(h.x, h.y);
-      ctx.rotate(s.ang);
-      const tOut = Math.sin(performance.now() * 0.012) > 0.15 ? 4.5 : 1.5;
-      ctx.strokeStyle = "#ef4444";
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(s.r * 0.85, 0);
-      ctx.lineTo(s.r * 0.85 + tOut, 0);
-      ctx.lineTo(s.r * 0.85 + tOut + 2, -1.8);
-      ctx.moveTo(s.r * 0.85 + tOut, 0);
-      ctx.lineTo(s.r * 0.85 + tOut + 2, 1.8);
-      ctx.stroke();
-      ctx.fillStyle = "hsl(" + s.hue + ",82%,38%)";
-      ctx.strokeStyle = "hsl(" + s.hue + ",88%,18%)";
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.ellipse(0.5, 0, s.r * 1.18, s.r * 0.96, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "#fef08a";
-      ctx.beginPath();
-      ctx.arc(s.r * 0.35, -s.r * 0.48, 2.2, 0, Math.PI * 2);
-      ctx.arc(s.r * 0.35, s.r * 0.48, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#0f172a";
-      ctx.beginPath();
-      ctx.arc(s.r * 0.45, -s.r * 0.48, 1.15, 0, Math.PI * 2);
-      ctx.arc(s.r * 0.45, s.r * 0.48, 1.15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-
-    function drawBanner(title, sub) {
-      const dark = document.body.classList.contains("dark");
-      ctx.fillStyle = dark ? "rgba(14,17,22,0.82)" : "rgba(241,245,249,0.86)";
-      ctx.fillRect(0, H * 0.33, W, H * 0.34);
-      ctx.fillStyle = dark ? "#f8fafc" : "#0f172a";
-      ctx.font = "bold 20px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(title, W / 2, H * 0.48);
-      ctx.font = "13px system-ui, sans-serif";
-      ctx.fillText(sub, W / 2, H * 0.57);
-    }
-
-    function render() {
-      ctx.clearRect(0, 0, W, H);
-      const dark = document.body.classList.contains("dark");
-      ctx.fillStyle = dark ? "#475569" : "#64748b";
-      for (const w of walls) ctx.fillRect(w.x, w.y, w.w, w.h);
-      for (const f of foods) {
-        ctx.save();
-        ctx.translate(f.x, f.y);
-        if (f.kind === "star") {
-          ctx.fillStyle = "#f59e0b";
-          ctx.strokeStyle = "#78350f";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          for (let i = 0; i < 10; i++) {
-            const rad = i % 2 === 0 ? f.rad + 1.5 : f.rad * 0.48;
-            const a = (i * Math.PI) / 5 - Math.PI / 2;
-            if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
-            else ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
-          }
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        } else {
-          ctx.fillStyle = f.kind === "citrus" ? "#fb923c" : "#ef4444";
-          ctx.strokeStyle = "#0f172a";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(0, 0, f.rad, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = "#16a34a";
-          ctx.fillRect(-1.1, -f.rad - 2.8, 2.2, 3.2);
-        }
-        ctx.restore();
-      }
-      for (const sk of skulls) {
-        ctx.save();
-        ctx.translate(sk.x, sk.y);
-        ctx.strokeStyle = "rgba(239,68,68,.45)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, sk.r + 2.5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#0f172a";
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.arc(0, -1, sk.r * 0.85, Math.PI * 0.85, Math.PI * 2.15);
-        ctx.lineTo(sk.r * 0.45, sk.r * 0.85);
-        ctx.lineTo(-sk.r * 0.45, sk.r * 0.85);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath();
-        ctx.arc(-3, -1.5, 1.8, 0, Math.PI * 2);
-        ctx.arc(3, -1.5, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(-2.5, 3.2);
-        ctx.lineTo(-2.5, 5.5);
-        ctx.moveTo(0, 3.2);
-        ctx.lineTo(0, 5.5);
-        ctx.moveTo(2.5, 3.2);
-        ctx.lineTo(2.5, 5.5);
-        ctx.stroke();
-        ctx.restore();
-      }
-      for (const s of snakes) drawSnake(s);
-      if (raider) {
-        if (raider.warn > 0) {
-          const wx = raider.dir > 0 ? 14 : W - 14;
-          ctx.save();
-          ctx.fillStyle = Math.floor(performance.now() / 120) % 2 === 0 ? "#ef4444" : "#f59e0b";
-          ctx.strokeStyle = "#0f172a";
-          ctx.lineWidth = 1.4;
-          ctx.beginPath();
-          ctx.arc(wx, raider.laneY, 9, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "bold 11px system-ui,sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("!", wx, raider.laneY + 0.5);
-          ctx.restore();
-        } else {
-          drawSnake(raider);
-        }
-      }
-
-      if (mode === "demo") {
-        drawBanner("SNAKE SPLIT", "Récord: " + best + " pts · Toca Jugar");
-      } else if (mode === "pause") {
-        drawBanner("EN PAUSA", "Toca Seguir para continuar");
-      } else if (mode === "clear") {
-        drawBanner("¡Nivel " + lvl + " listo!", "Toca Otro Nivel para continuar");
-      } else if (mode === "over") {
-        drawBanner("¡Chocaste!", "Toca Reiniciar para jugar de nuevo");
-      }
-    }
-
-    function loop(t) {
-      const dt = Math.min((t - prevT) / 1000 || 0.016, 0.05);
-      prevT = t;
-      step(dt);
-      render();
-      requestAnimationFrame(loop);
-    }
-
-    initLvl(1, true);
-    requestAnimationFrame(loop);
-  </script>
-</body>
-</html>
+      for (let i = 0; i < 5
