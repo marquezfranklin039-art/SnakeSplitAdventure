@@ -120,33 +120,33 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
   </div>
 
   <script>
-    const MAX_LVL = 100;
-    const c = document.getElementById("c");
-    const ctx = c.getContext("2d");
-    const W = 300, H = 340;
+    var MAX_LVL = 100;
+    var c = document.getElementById("c");
+    var ctx = c.getContext("2d");
+    var W = 300, H = 340;
 
-    const tLvl = document.getElementById("t-lvl");
-    const tPts = document.getElementById("t-pts");
-    const bPause = document.getElementById("b-pause");
-    const bCenter = document.getElementById("b-center");
-    const cfgPanel = document.getElementById("cfg-panel");
+    var tLvl = document.getElementById("t-lvl");
+    var tPts = document.getElementById("t-pts");
+    var bPause = document.getElementById("b-pause");
+    var bCenter = document.getElementById("b-center");
+    var cfgPanel = document.getElementById("cfg-panel");
 
-    const diffs = [
+    var diffs = [
       { label: "Tranquila", spd: 52, skulls: 1, move: 24 },
       { label: "Estándar", spd: 68, skulls: 2, move: 36 },
       { label: "Extrema", spd: 84, skulls: 3, move: 52 }
     ];
 
-    let dIdx = 1, snd = true, best = 0, bestLvl = 1;
+    var dIdx = 1, snd = true, best = 0, bestLvl = 1;
     try {
       best = Number(localStorage.getItem("ss_rec") || 0) || 0;
       bestLvl = Math.min(MAX_LVL, Number(localStorage.getItem("ss_lvl") || 1) || 1);
-    } catch (_) {}
+    } catch (e) {}
 
-    let mode = "demo";
-    let lvl = 1, pts = 0, tot = 0;
-    let snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
-    let turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4, lastErr = "";
+    var mode = "demo";
+    var lvl = 1, pts = 0, tot = 0;
+    var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
+    var turn = 0, prevT = 0, audio = null, raider = null, raiderCd = 7, portalCd = 4;
 
     function getRaiderLevel() {
       return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
@@ -158,22 +158,22 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
       try {
         localStorage.setItem("ss_rec", String(best));
         localStorage.setItem("ss_lvl", String(bestLvl));
-      } catch (_) {}
+      } catch (e) {}
     }
 
     function ensureAudio() {
       if (!snd) return null;
       try {
-        const A = window.AudioContext || window.webkitAudioContext;
+        var A = window.AudioContext || window.webkitAudioContext;
         if (!A) return null;
         if (!audio) audio = new A();
         if (audio.state === "suspended") audio.resume();
         return audio;
-      } catch (_) { return null; }
+      } catch (e) { return null; }
     }
 
     function tone(a, t, f, d, w, v, e) {
-      const o = a.createOscillator(), g = a.createGain();
+      var o = a.createOscillator(), g = a.createGain();
       o.type = w || "triangle";
       o.frequency.setValueAtTime(f, t);
       if (e) o.frequency.exponentialRampToValueAtTime(e, t + d);
@@ -188,10 +188,10 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
 
     function playSound(k, rLvl) {
       if (!snd) return;
-      const a = ensureAudio();
+      var a = ensureAudio();
       if (!a) return;
       try {
-        const t = a.currentTime;
+        var t = a.currentTime;
         if (k === "eat") {
           tone(a, t, 523.25, 0.07, "triangle", 0.14, 659.25);
           tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
@@ -211,7 +211,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
           tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
           tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
         } else if (k === "alert") {
-          const boost = Math.min(240, ((rLvl || 1) - 1) * 14);
+          var boost = Math.min(240, ((rLvl || 1) - 1) * 14);
           tone(a, t, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
           tone(a, t + 0.08, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
         } else if (k === "fire") {
@@ -225,51 +225,54 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
         } else if (k === "click") {
           tone(a, t, 660, 0.05, "sine", 0.1, 784);
         }
-      } catch (_) {}
+      } catch (e) {}
     }
 
     function makeSnake(x, y, ang, len, hue, player) {
-      const segs = [];
-      for (let i = 0; i < len; i++) {
+      var segs = [];
+      for (var i = 0; i < len; i++) {
         segs.push({ x: x - Math.cos(ang) * i * 4.5, y: y - Math.sin(ang) * i * 4.5 });
       }
-      return { segs, ang, hue, player, r: 6.8, warpCd: 0 };
+      return { segs: segs, ang: ang, hue: hue, player: player, r: 6.8, warpCd: 0 };
     }
 
     function hitWall(x, y, r) {
-      for (const w of walls) {
-        const nx = Math.max(w.x, Math.min(x, w.x + w.w));
-        const ny = Math.max(w.y, Math.min(y, w.y + w.h));
-        if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return true;
+      for (var i = 0; i < walls.length; i++) {
+        var w = walls[i];
+        var nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        var ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        var dx = x - nx, dy = y - ny;
+        if (dx * dx + dy * dy < r * r) return true;
       }
       return false;
     }
 
     function safeSpot(x, y, sw) {
       if (Math.hypot(x - W / 2, y - H * 0.8) < 55) return false;
-      for (let s = -1; s <= 1; s++) {
+      for (var s = -1; s <= 1; s++) {
         if (hitWall(x, y + s * (sw || 0), 14)) return false;
       }
-      for (const sk of skulls) {
+      for (var i = 0; i < skulls.length; i++) {
+        var sk = skulls[i];
         if (Math.hypot(x - sk.x, y - sk.y) < 32) return false;
       }
       return true;
     }
 
     function pickPortalSpot(other) {
-      for (let i = 0; i < 50; i++) {
-        const x = 36 + Math.random() * (W - 72);
-        const y = 36 + Math.random() * (H - 72);
+      for (var i = 0; i < 50; i++) {
+        var x = 36 + Math.random() * (W - 72);
+        var y = 36 + Math.random() * (H - 72);
         if (!safeSpot(x, y, 0)) continue;
         if (other && Math.hypot(x - other.x, y - other.y) < 105) continue;
-        return { x, y };
+        return { x: x, y: y };
       }
       return { x: other ? W - 45 : 45, y: H * 0.5 };
     }
 
     function spawnPortals() {
-      const a = pickPortalSpot(null);
-      const b = pickPortalSpot(a);
+      var a = pickPortalSpot(null);
+      var b = pickPortalSpot(a);
       portals = [
         { x: a.x, y: a.y, r: 12.5, life: 9.5, hue: 272 },
         { x: b.x, y: b.y, r: 12.5, life: 9.5, hue: 196 }
@@ -292,16 +295,16 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function addFood() {
-      const r = Math.random();
-      const kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
-      let x = W / 2, y = H * 0.42;
-      for (let i = 0; i < 45; i++) {
-        const tx = 26 + Math.random() * (W - 52);
-        const ty = 26 + Math.random() * (H - 52);
+      var r = Math.random();
+      var kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
+      var x = W / 2, y = H * 0.42;
+      for (var i = 0; i < 45; i++) {
+        var tx = 26 + Math.random() * (W - 52);
+        var ty = 26 + Math.random() * (H - 52);
         if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
       }
       foods.push({
-        x, y, kind,
+        x: x, y: y, kind: kind,
         val: kind === "star" ? 40 : (kind === "citrus" ? 20 : 10),
         grow: kind === "star" ? 3 : 2,
         rad: kind === "star" ? 6.8 : 5.8
@@ -309,18 +312,18 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function spawnRaider() {
-      const rLvl = getRaiderLevel();
-      const fromL = Math.random() < 0.5;
-      const sx = fromL ? -16 : W + 16;
-      const sy = 75 + Math.random() * (H - 150);
-      const ang = fromL ? 0 : Math.PI;
-      const segs = [];
-      for (let i = 0; i < 14; i++) {
+      var rLvl = getRaiderLevel();
+      var fromL = Math.random() < 0.5;
+      var sx = fromL ? -16 : W + 16;
+      var sy = 75 + Math.random() * (H - 150);
+      var ang = fromL ? 0 : Math.PI;
+      var segs = [];
+      for (var i = 0; i < 14; i++) {
         segs.push({ x: sx - Math.cos(ang) * i * 4.5, y: sy });
       }
       raider = {
-        segs, ang, hue: 348, r: 7.2,
-        rLvl,
+        segs: segs, ang: ang, hue: 348, r: 7.2,
+        rLvl: rLvl,
         warn: 1.0, dir: fromL ? 1 : -1,
         laneY: sy, phase: "in",
         shotCd: Math.max(0.55, 1.35 - (rLvl - 1) * 0.045)
@@ -329,7 +332,7 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function shootFireball(x, y, ang, spd, rLvl) {
-      const ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
+      var ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
       fireballs.push({
         x: x + Math.cos(ang) * 11,
         y: y + Math.sin(ang) * 11,
@@ -365,26 +368,26 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
         { x: W - 106, y: 205, w: 68, h: 12 }
       ] : [];
       skulls = [];
-      const cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
-      const mov = lvl >= 4;
-      const sw = mov ? 36 : 0;
-      let tr = 0;
+      var cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
+      var mov = lvl >= 4;
+      var sw = mov ? 36 : 0;
+      var tr = 0;
       while (skulls.length < cnt && tr < 140) {
         tr++;
-        const sx = 34 + Math.random() * (W - 68);
-        const sy = 44 + sw + Math.random() * Math.max(20, H - 88 - sw * 2);
+        var sx = 34 + Math.random() * (W - 68);
+        var sy = 44 + sw + Math.random() * Math.max(20, H - 88 - sw * 2);
         if (safeSpot(sx, sy, sw)) {
           skulls.push({
             x: sx, y: sy,
             minY: Math.max(24, sy - sw),
             maxY: Math.min(H - 24, sy + sw),
             dir: Math.random() < 0.5 ? -1 : 1,
-            mov, r: 8.5
+            mov: mov, r: 8.5
           });
         }
       }
       foods = [];
-      for (let i = 0; i < 5; i++) addFood();
+      for (var i = 0; i < 5; i++) addFood();
       saveRec();
       tLvl.textContent = "Nivel " + lvl + " / " + MAX_LVL;
       tPts.textContent = pts + " / 300";
@@ -422,11 +425,12 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function safeAng(x, y, a, r, dist) {
-      for (let d = 10; d <= dist; d += 8) {
-        const px = x + Math.cos(a) * d;
-        const py = y + Math.sin(a) * d;
+      for (var d = 10; d <= dist; d += 8) {
+        var px = x + Math.cos(a) * d;
+        var py = y + Math.sin(a) * d;
         if (px < r + 14 || px > W - r - 14 || py < r + 14 || py > H - r - 14 || hitWall(px, py, r + 7)) return false;
-        for (const sk of skulls) {
+        for (var i = 0; i < skulls.length; i++) {
+          var sk = skulls[i];
           if (Math.hypot(px - sk.x, py - sk.y) < sk.r + r + 13) return false;
         }
       }
@@ -434,54 +438,20 @@ body.dark button { background: #1b222c; color: #f8fafc; border-color: #2e3948; }
     }
 
     function pickAng(x, y, pref, r) {
-      const list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
-      for (const cnd of list) {
-        const a = norm(cnd);
+      var list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
+      for (var i = 0; i < list.length; i++) {
+        var a = norm(list[i]);
         if (safeAng(x, y, a, r, 42)) return a;
       }
       return norm(pref);
     }
 
     function splitSnakes() {
-      const next = [];
-      let ok = false;
-      for (const s of snakes) {
+      var next = [];
+      var ok = false;
+      for (var i = 0; i < snakes.length; i++) {
+        var s = snakes[i];
         if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
-          const part = s.segs.splice(Math.floor(s.segs.length / 2));
+          var part = s.segs.splice(Math.floor(s.segs.length / 2));
           next.push(s);
-          next.push(makeSnake(part[0].x, part[0].y, pickAng(part[0].x, part[0].y, s.ang + Math.PI * 0.5, s.r), part.length, (s.hue + 65) % 360, false));
-          ok = true;
-        } else {
-          next.push(s);
-        }
-      }
-      if (ok) { snakes = next; playSound("split"); }
-    }
-
-    function handleCenterAction() {
-      ensureAudio();
-      if (mode === "demo" || mode === "over" || mode === "win") {
-        startGame();
-      } else if (mode === "pause") {
-        togglePause();
-      } else if (mode === "clear") {
-        mode = "play";
-        initLvl(lvl + 1, false);
-        playSound("start");
-      } else if (mode === "play") {
-        splitSnakes();
-      }
-    }
-
-    function aiTurn(s) {
-      const h = s.segs[0];
-      let tg = null, bs = Infinity;
-      for (const f of foods) {
-        const sc = Math.hypot(f.x - h.x, f.y - h.y) * (f.kind === "star" ? 0.65 : (f.kind === "citrus" ? 0.85 : 1));
-        if (sc < bs) { bs = sc; tg = f; }
-      }
-      let des = tg ? Math.atan2(tg.y - h.y, tg.x - h.x) : Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
-      if (!safeAng(h.x, h.y, des, s.r, 34)) {
-        let ok = false;
-        for (let o = 0.35; o <= Math.PI; o += 0.35) {
-          const l = norm(des - o), r = norm(des +
+          next.push(makeSnake(part[0].x, part
