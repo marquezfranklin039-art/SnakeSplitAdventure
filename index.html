@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Snake Split</title>
 <style>
-* { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 body {
   margin: 0;
   height: 100vh;
@@ -56,8 +61,8 @@ body.dark .pill {
   position: relative;
   width: 100%;
   max-width: 480px;
-  height: 490px;
-  max-height: calc(100vh - 118px);
+  height: 485px;
+  max-height: calc(100vh - 116px);
   border-radius: 18px;
   overflow: hidden;
   border: 3px solid #0284c7;
@@ -249,26 +254,26 @@ body.dark button {
     <div id="stage"></div>
     <div id="overlay">
       <div id="ov-title">SNAKE SPLIT</div>
-      <div id="ov-sub">Toca Jugar - 100 Niveles</div>
+      <div id="ov-sub">Toca Jugar · 100 Niveles</div>
     </div>
   </div>
 
   <div id="cfg-panel">
-    <button type="button" id="o-diff">Dificultad: Estandar</button>
+    <button type="button" id="o-diff">Dificultad: Estándar</button>
     <button type="button" id="o-theme">Pantalla: Clara</button>
-    <button type="button" id="o-snd">Sonido: Si</button>
-    <div class="rec-tag" id="o-rec">Record: 0 pts - Nivel Max: 1</div>
+    <button type="button" id="o-snd">Sonido: Sí</button>
+    <div class="rec-tag" id="o-rec">Récord: 0 pts · Nivel Máx: 1</div>
   </div>
 
   <div class="pads">
-    <button type="button" id="b-left">Izq</button>
-    <button type="button" class="main" id="b-center">Jugar</button>
-    <button type="button" id="b-right">Der</button>
+    <button type="button" id="b-left">◀ Izq</button>
+    <button type="button" class="main" id="b-center">▶ Jugar</button>
+    <button type="button" id="b-right">Der ▶</button>
   </div>
 
   <script>
     var MAX_LVL = 100;
-    var W = 440, H = 490;
+    var W = 420, H = 485;
     var box = document.getElementById("box");
     var stage = document.getElementById("stage");
     var tLvl = document.getElementById("t-lvl");
@@ -283,7 +288,7 @@ body.dark button {
 
     var diffs = [
       { label: "Tranquila", spd: 54, skulls: 1, move: 24 },
-      { label: "Estandar", spd: 70, skulls: 2, move: 36 },
+      { label: "Estándar", spd: 70, skulls: 2, move: 36 },
       { label: "Extrema", spd: 86, skulls: 3, move: 52 }
     ];
 
@@ -299,8 +304,10 @@ body.dark button {
     var turn = 0, audio = null, raider = null, raiderCd = 6.5, portalCd = 3.5;
 
     function syncStageSize() {
-      W = box.clientWidth || 440;
-      H = box.clientHeight || 490;
+      var cw = box.clientWidth;
+      var ch = box.clientHeight;
+      if (cw > 80) W = cw;
+      if (ch > 120) H = ch;
     }
 
     function dist(x1, y1, x2, y2) {
@@ -315,7 +322,7 @@ body.dark button {
     function saveRec() {
       if (tot > best) best = tot;
       if (lvl > bestLvl) bestLvl = Math.min(MAX_LVL, lvl);
-      oRec.textContent = "Record: " + best + " pts - Nivel Max: " + bestLvl;
+      oRec.textContent = "Récord: " + best + " pts · Nivel Máx: " + bestLvl;
       try {
         localStorage.setItem("ss_rec", String(best));
         localStorage.setItem("ss_lvl", String(bestLvl));
@@ -391,4 +398,87 @@ body.dark button {
           tone(a, t + 0.05, 480, 0.11, "triangle", 0.12, 960);
         } else if (k === "hit") {
           tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
-          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.
+          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
+        } else if (k === "click") {
+          tone(a, t, 660, 0.05, "sine", 0.1, 784);
+        }
+      } catch (e) {}
+    }
+
+    function makeSnake(x, y, ang, len, color, player) {
+      var segs = [];
+      for (var i = 0; i < len; i++) {
+        segs.push({ x: x - Math.cos(ang) * i * 5, y: y - Math.sin(ang) * i * 5 });
+      }
+      return { segs: segs, ang: ang, color: color, player: player, r: 7.5, warpCd: 0 };
+    }
+
+    function hitWall(x, y, r) {
+      for (var i = 0; i < walls.length; i++) {
+        var w = walls[i];
+        var nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        var ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        if (dist(x, y, nx, ny) < r) return true;
+      }
+      return false;
+    }
+
+    function safeSpot(x, y, sw) {
+      if (dist(x, y, W * 0.5, H * 0.72) < 55) return false;
+      for (var s = -1; s <= 1; s++) {
+        if (hitWall(x, y + s * (sw || 0), 15)) return false;
+      }
+      for (var i = 0; i < skulls.length; i++) {
+        if (dist(x, y, skulls[i].x, skulls[i].y) < 34) return false;
+      }
+      return true;
+    }
+
+    function pickPortalSpot(other) {
+      for (var i = 0; i < 45; i++) {
+        var x = 36 + Math.random() * Math.max(40, W - 72);
+        var y = 115 + Math.random() * Math.max(40, H - 150);
+        if (!safeSpot(x, y, 0)) continue;
+        if (other && dist(x, y, other.x, other.y) < 115) continue;
+        return { x: x, y: y };
+      }
+      return { x: other ? W - 45 : 45, y: H * 0.55 };
+    }
+
+    function spawnPortals() {
+      var a = pickPortalSpot(null);
+      var b = pickPortalSpot(a);
+      portals = [
+        { x: a.x, y: a.y, r: 13.5, life: 9.5, color: "#a855f7" },
+        { x: b.x, y: b.y, r: 13.5, life: 9.5, color: "#06b6d4" }
+      ];
+      if (mode === "play") playSound("warp");
+    }
+
+    function updatePortals(dt) {
+      if (portals.length < 2) {
+        portalCd -= dt;
+        if (portalCd <= 0) spawnPortals();
+        return;
+      }
+      portals[0].life -= dt;
+      portals[1].life -= dt;
+      if (portals[0].life <= 0) {
+        portals = [];
+        portalCd = Math.max(4.5, 8.5 - lvl * 0.04);
+      }
+    }
+
+    function addFood() {
+      var r = Math.random();
+      var kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
+      var x = W * 0.5, y = H * 0.45;
+      for (var i = 0; i < 40; i++) {
+        var tx = 28 + Math.random() * Math.max(40, W - 56);
+        var ty = 112 + Math.random() * Math.max(40, H - 142);
+        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
+      }
+      foods.push({
+        x: x, y: y, kind: kind,
+        val: kind === "star" ? 40 : (kind === "citrus" ? 20 : 10),
+        grow: kind === "star" ? 
