@@ -85,11 +85,13 @@ body.dark #box {
   position: relative;
   width: 100%;
   height: 100%;
+  z-index: 2;
 }
 .ent {
   position: absolute;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  z-index: 3;
 }
 .seg {
   border-radius: 50%;
@@ -104,6 +106,7 @@ body.dark #box {
   font-size: 10px;
   font-weight: 900;
   color: #0f172a;
+  z-index: 4;
 }
 .food {
   border-radius: 50%;
@@ -126,6 +129,7 @@ body.dark #box {
   border: 1.5px solid #0f172a;
   border-radius: 4px;
   pointer-events: none;
+  z-index: 2;
 }
 body.dark .wall {
   background: #475569;
@@ -147,6 +151,7 @@ body.dark .wall {
   font-weight: 900;
   text-shadow: 0 1px 2px #ffffff;
   white-space: nowrap;
+  z-index: 5;
 }
 body.dark .fx {
   text-shadow: 0 1px 3px #0f172a;
@@ -161,7 +166,7 @@ body.dark .fx {
   text-align: center;
   background: rgba(255, 255, 255, 0.86);
   border: 2px solid #0284c7;
-  z-index: 5;
+  z-index: 6;
   cursor: pointer;
 }
 body.dark #overlay {
@@ -254,21 +259,21 @@ body.dark button {
     <div id="stage"></div>
     <div id="overlay">
       <div id="ov-title">SNAKE SPLIT</div>
-      <div id="ov-sub">Toca Jugar · 100 Niveles</div>
+      <div id="ov-sub">Toca Jugar - 100 Niveles</div>
     </div>
   </div>
 
   <div id="cfg-panel">
-    <button type="button" id="o-diff">Dificultad: Estándar</button>
+    <button type="button" id="o-diff">Dificultad: Estandar</button>
     <button type="button" id="o-theme">Pantalla: Clara</button>
-    <button type="button" id="o-snd">Sonido: Sí</button>
-    <div class="rec-tag" id="o-rec">Récord: 0 pts · Nivel Máx: 1</div>
+    <button type="button" id="o-snd">Sonido: Si</button>
+    <div class="rec-tag" id="o-rec">Record: 0 pts - Nivel Max: 1</div>
   </div>
 
   <div class="pads">
-    <button type="button" id="b-left">◀ Izq</button>
-    <button type="button" class="main" id="b-center">▶ Jugar</button>
-    <button type="button" id="b-right">Der ▶</button>
+    <button type="button" id="b-left">Izq</button>
+    <button type="button" class="main" id="b-center">Jugar</button>
+    <button type="button" id="b-right">Der</button>
   </div>
 
   <script>
@@ -288,7 +293,7 @@ body.dark button {
 
     var diffs = [
       { label: "Tranquila", spd: 54, skulls: 1, move: 24 },
-      { label: "Estándar", spd: 70, skulls: 2, move: 36 },
+      { label: "Estandar", spd: 70, skulls: 2, move: 36 },
       { label: "Extrema", spd: 86, skulls: 3, move: 52 }
     ];
 
@@ -322,7 +327,7 @@ body.dark button {
     function saveRec() {
       if (tot > best) best = tot;
       if (lvl > bestLvl) bestLvl = Math.min(MAX_LVL, lvl);
-      oRec.textContent = "Récord: " + best + " pts · Nivel Máx: " + bestLvl;
+      oRec.textContent = "Record: " + best + " pts - Nivel Max: " + bestLvl;
       try {
         localStorage.setItem("ss_rec", String(best));
         localStorage.setItem("ss_lvl", String(bestLvl));
@@ -481,4 +486,172 @@ body.dark button {
       foods.push({
         x: x, y: y, kind: kind,
         val: kind === "star" ? 40 : (kind === "citrus" ? 20 : 10),
-        grow: kind === "star" ? 
+        grow: kind === "star" ? 3 : 2,
+        rad: kind === "star" ? 7.5 : 6.5
+      });
+    }
+
+    function spawnRaider() {
+      var rLvl = getRaiderLevel();
+      var fromL = Math.random() < 0.5;
+      var sx = fromL ? -14 : W + 14;
+      var sy = 125 + Math.random() * Math.max(40, H - 180);
+      var ang = fromL ? 0 : Math.PI;
+      var segs = [];
+      for (var i = 0; i < 12; i++) {
+        segs.push({ x: sx - Math.cos(ang) * i * 5, y: sy });
+      }
+      raider = {
+        segs: segs, ang: ang, color: "#f43f5e", r: 7.5,
+        rLvl: rLvl, warn: 1.0, dir: fromL ? 1 : -1,
+        laneY: sy, phase: "in",
+        shotCd: Math.max(0.55, 1.35 - (rLvl - 1) * 0.045)
+      };
+      playSound("alert", rLvl);
+    }
+
+    function shootFireball(x, y, ang, spd, rLvl) {
+      var ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
+      fireballs.push({
+        x: x + Math.cos(ang) * 11,
+        y: y + Math.sin(ang) * 11,
+        vx: Math.cos(ang) * ballSpeed,
+        vy: Math.sin(ang) * ballSpeed,
+        r: 5.5
+      });
+      if (mode === "play") playSound("fire");
+    }
+
+    function syncOverlay() {
+      if (mode === "play") {
+        overlay.style.display = "none";
+      } else {
+        overlay.style.display = "block";
+        if (mode === "demo") {
+          ovTitle.textContent = "SNAKE SPLIT";
+          ovSub.textContent = "Record: " + best + " pts - Max: Nv." + bestLvl + " - Toca Jugar";
+        } else if (mode === "pause") {
+          ovTitle.textContent = "EN PAUSA";
+          ovSub.textContent = "Toca Seguir para continuar";
+        } else if (mode === "clear") {
+          ovTitle.textContent = "NIVEL " + lvl + " LISTO";
+          ovSub.textContent = "Toca Otro Nivel para continuar";
+        } else if (mode === "win") {
+          ovTitle.textContent = "CAMPEON 100/100";
+          ovSub.textContent = "Record: " + best + " pts - Toca Reiniciar";
+        } else {
+          ovTitle.textContent = "CHOCASTE";
+          ovSub.textContent = "Toca Reiniciar para jugar de nuevo";
+        }
+      }
+      if (mode === "demo") bCenter.textContent = "Jugar";
+      else if (mode === "play") bCenter.textContent = "Dividir";
+      else if (mode === "pause") bCenter.textContent = "Seguir";
+      else if (mode === "clear") bCenter.textContent = "Otro Nivel";
+      else bCenter.textContent = "Reiniciar";
+    }
+
+    function initLvl(n, resetTot) {
+      syncStageSize();
+      lvl = Math.min(MAX_LVL, n);
+      pts = 0;
+      if (resetTot) tot = 0;
+      turn = 0;
+      raider = null;
+      fireballs = [];
+      portals = [];
+      fxList = [];
+      portalCd = 3.5;
+      raiderCd = Math.max(3.5, 8.5 - getRaiderLevel() * 0.25);
+      bPause.textContent = "Pausa";
+      snakes = [makeSnake(W * 0.5, H * 0.72, -Math.PI * 0.5, 12, "#10b981", true)];
+      walls = lvl > 1 ? [
+        { x: 40, y: Math.round(H * 0.30), w: 80, h: 13 },
+        { x: Math.max(40, W - 120), y: Math.round(H * 0.54), w: 80, h: 13 }
+      ] : [];
+      skulls = [];
+      var cnt = Math.min(5, diffs[dIdx].skulls + Math.floor((lvl - 1) / 2));
+      var mov = lvl >= 4;
+      var sw = mov ? 38 : 0;
+      var tr = 0;
+      while (skulls.length < cnt && tr < 140) {
+        tr++;
+        var sx = 36 + Math.random() * Math.max(40, W - 72);
+        var sy = 115 + sw + Math.random() * Math.max(20, H - 155 - sw * 2);
+        if (safeSpot(sx, sy, sw)) {
+          skulls.push({
+            x: sx, y: sy,
+            minY: Math.max(108, sy - sw),
+            maxY: Math.min(H - 28, sy + sw),
+            dir: Math.random() < 0.5 ? -1 : 1,
+            mov: mov, r: 9.5
+          });
+        }
+      }
+      foods = [];
+      for (var i = 0; i < 5; i++) addFood();
+      saveRec();
+      tLvl.textContent = "Nivel " + lvl + " / " + MAX_LVL;
+      tPts.textContent = pts + " / 300";
+      syncOverlay();
+    }
+
+    function startGame() {
+      ensureAudio();
+      cfgPanel.classList.remove("open");
+      mode = "play";
+      initLvl(1, true);
+      playSound("start");
+    }
+
+    function togglePause() {
+      ensureAudio();
+      if (mode === "play") {
+        mode = "pause";
+        turn = 0;
+        bPause.textContent = "Seguir";
+        syncOverlay();
+        playSound("click");
+      } else if (mode === "pause") {
+        mode = "play";
+        bPause.textContent = "Pausa";
+        syncOverlay();
+        playSound("click");
+      }
+    }
+
+    function norm(a) {
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      return a;
+    }
+
+    function safeAng(x, y, a, r, dMax) {
+      for (var d = 10; d <= dMax; d += 8) {
+        var px = x + Math.cos(a) * d;
+        var py = y + Math.sin(a) * d;
+        if (px < r + 14 || px > W - r - 14 || py < r + 14 || py > H - r - 14 || hitWall(px, py, r + 7)) return false;
+        for (var i = 0; i < skulls.length; i++) {
+          if (dist(px, py, skulls[i].x, skulls[i].y) < skulls[i].r + r + 13) return false;
+        }
+      }
+      return true;
+    }
+
+    function pickAng(x, y, pref, r) {
+      var list = [pref, Math.atan2(H * 0.5 - y, W * 0.5 - x), 0, Math.PI, -Math.PI * 0.5, Math.PI * 0.5, 0.5, -0.5, 2.6, -2.6];
+      for (var i = 0; i < list.length; i++) {
+        var a = norm(list[i]);
+        if (safeAng(x, y, a, r, 42)) return a;
+      }
+      return norm(pref);
+    }
+
+    function splitSnakes() {
+      var next = [];
+      var ok = false;
+      var extraCols = ["#38bdf8", "#f59e0b", "#a855f7"];
+      for (var i = 0; i < snakes.length; i++) {
+        var s = snakes[i];
+        if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
+          var part = s.segs.splice(Math.floor(s.segs.length
