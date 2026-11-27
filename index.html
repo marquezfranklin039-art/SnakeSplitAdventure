@@ -278,7 +278,7 @@ body.dark button {
 
   <script>
     var MAX_LVL = 100;
-    var W = 420, H = 485;
+    var W = 380, H = 460;
     var box = document.getElementById("box");
     var stage = document.getElementById("stage");
     var tLvl = document.getElementById("t-lvl");
@@ -311,8 +311,8 @@ body.dark button {
     function syncStageSize() {
       var cw = box.clientWidth;
       var ch = box.clientHeight;
-      if (cw > 80) W = cw;
-      if (ch > 120) H = ch;
+      if (cw > 60) W = cw;
+      if (ch > 100) H = ch;
     }
 
     function dist(x1, y1, x2, y2) {
@@ -654,4 +654,394 @@ body.dark button {
       for (var i = 0; i < snakes.length; i++) {
         var s = snakes[i];
         if (s.segs.length >= 8 && next.length + snakes.length <= 4) {
-          var part = s.segs.splice(Math.floor(s.segs.length
+          var part = s.segs.splice(Math.floor(s.segs.length / 2));
+          next.push(s);
+          next.push(makeSnake(part[0].x, part[0].y, pickAng(part[0].x, part[0].y, s.ang + Math.PI * 0.5, s.r), part.length, extraCols[next.length % extraCols.length], false));
+          addFx(part[0].x, part[0].y - 12, "SPLIT!", "#0284c7");
+          ok = true;
+        } else {
+          next.push(s);
+        }
+      }
+      if (ok) { snakes = next; playSound("split"); }
+    }
+
+    function handleCenterAction() {
+      ensureAudio();
+      if (mode === "demo" || mode === "over" || mode === "win") {
+        startGame();
+      } else if (mode === "pause") {
+        togglePause();
+      } else if (mode === "clear") {
+        mode = "play";
+        initLvl(lvl + 1, false);
+        playSound("start");
+      } else if (mode === "play") {
+        splitSnakes();
+      }
+    }
+
+    function aiTurn(s) {
+      var h = s.segs[0];
+      var tg = null, bs = 999999;
+      for (var i = 0; i < foods.length; i++) {
+        var f = foods[i];
+        var sc = dist(f.x, f.y, h.x, h.y) * (f.kind === "star" ? 0.65 : (f.kind === "citrus" ? 0.85 : 1));
+        if (sc < bs) { bs = sc; tg = f; }
+      }
+      var des = tg ? Math.atan2(tg.y - h.y, tg.x - h.x) : Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
+      if (!safeAng(h.x, h.y, des, s.r, 34)) {
+        var ok = false;
+        for (var o = 0.35; o <= Math.PI; o += 0.35) {
+          var l = norm(des - o), r = norm(des + o);
+          if (safeAng(h.x, h.y, l, s.r, 34)) { des = l; ok = true; break; }
+          if (safeAng(h.x, h.y, r, s.r, 34)) { des = r; ok = true; break; }
+        }
+        if (!ok) des = Math.atan2(H * 0.5 - h.y, W * 0.5 - h.x);
+      }
+      var df = norm(des - s.ang);
+      return Math.abs(df) < 0.06 ? 0 : (df > 0 ? 1 : -1);
+    }
+
+    function killPlayer() {
+      mode = "over";
+      saveRec();
+      syncOverlay();
+      playSound("hit");
+    }
+
+    function updateFireballs(dt) {
+      var next = [];
+      for (var i = 0; i < fireballs.length; i++) {
+        var b = fireballs[i];
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        if (b.x < -12 || b.x > W + 12 || b.y < -12 || b.y > H + 12 || hitWall(b.x, b.y, b.r)) continue;
+        var hit = false;
+        for (var si = 0; si < snakes.length; si++) {
+          var s = snakes[si];
+          if (!s.player) continue;
+          for (var ki = 0; ki < s.segs.length; ki++) {
+            if (dist(b.x, b.y, s.segs[ki].x, s.segs[ki].y) < b.r + s.r - 1.5) {
+              hit = true;
+              break;
+            }
+          }
+          if (hit) break;
+        }
+        if (hit) { killPlayer(); return true; }
+        next.push(b);
+      }
+      fireballs = next;
+      return false;
+    }
+
+    function updateRaider(dt, spd) {
+      if (!raider) { raiderCd -= dt; if (raiderCd <= 0) spawnRaider(); return false; }
+      if (raider.warn > 0) { raider.warn -= dt; return false; }
+      var rLvl = raider.rLvl || 1;
+      var rs = spd * (1.22 + Math.min(0.65, (rLvl - 1) * 0.035));
+      var h = raider.segs[0];
+      var nx = h.x, ny = h.y;
+      if (raider.phase === "in") {
+        raider.ang = raider.dir > 0 ? 0 : Math.PI;
+        nx = h.x + raider.dir * rs * dt;
+        if ((raider.dir > 0 && nx >= W - 28) || (raider.dir < 0 && nx <= 28)) {
+          raider.phase = "loop";
+          raider.rad = Math.max(42, 58 - (rLvl - 1) * 0.7);
+          raider.cx = Math.min(W - 78, Math.max(78, nx - raider.dir * raider.rad));
+          raider.cy = Math.min(H - 78, Math.max(115, ny));
+          raider.la = Math.atan2(ny - raider.cy, nx - raider.cx);
+          raider.sa = raider.la;
+        }
+      } else if (raider.phase === "loop") {
+        raider.la += (rs / raider.rad) * raider.dir * dt;
+        nx = raider.cx + Math.cos(raider.la) * raider.rad;
+        ny = raider.cy + Math.sin(raider.la) * raider.rad;
+        raider.ang = norm(raider.la + (raider.dir > 0 ? Math.PI * 0.5 : -Math.PI * 0.5));
+        if (Math.abs(raider.la - raider.sa) >= Math.PI * 4) {
+          raider.phase = "out";
+          raider.ang = raider.dir > 0 ? 0 : Math.PI;
+        }
+      } else {
+        raider.ang = raider.dir > 0 ? 0 : Math.PI;
+        nx = h.x + raider.dir * rs * dt;
+        if (nx < -36 || nx > W + 36) {
+          raider = null;
+          raiderCd = Math.max(3.5, 8.5 - getRaiderLevel() * 0.25);
+          return false;
+        }
+      }
+      raider.segs.unshift({ x: nx, y: ny });
+      raider.segs.pop();
+
+      if (nx > 12 && nx < W - 12 && ny > 12 && ny < H - 12) {
+        raider.shotCd -= dt;
+        if (raider.shotCd <= 0) {
+          raider.shotCd = Math.max(0.55, 1.35 - (rLvl - 1) * 0.045);
+          shootFireball(nx, ny, raider.ang, spd, rLvl);
+        }
+      }
+
+      for (var si = 0; si < snakes.length; si++) {
+        var s = snakes[si];
+        if (!s.player) continue;
+        var ph = s.segs[0];
+        for (var k = 0; k < raider.segs.length; k++) {
+          if (dist(ph.x, ph.y, raider.segs[k].x, raider.segs[k].y) < s.r + (k === 0 ? raider.r : raider.r * 0.82) - 1) {
+            killPlayer();
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function step(dt) {
+      if (mode !== "play" && mode !== "demo") return;
+      syncStageSize();
+      var cfg = diffs[dIdx], spd = cfg.spd + (lvl - 1) * 4;
+      updatePortals(dt);
+
+      var nextFx = [];
+      for (var xi = 0; xi < fxList.length; xi++) {
+        var fx = fxList[xi];
+        fx.y -= 24 * dt;
+        fx.life -= dt;
+        if (fx.life > 0) nextFx.push(fx);
+      }
+      fxList = nextFx;
+
+      if (mode === "play" && (updateRaider(dt, spd) || updateFireballs(dt))) return;
+      for (var ski = 0; ski < skulls.length; ski++) {
+        var sk = skulls[ski];
+        if (sk.mov) {
+          sk.y += sk.dir * cfg.move * dt;
+          if (sk.y <= sk.minY) { sk.y = sk.minY; sk.dir = 1; }
+          if (sk.y >= sk.maxY) { sk.y = sk.maxY; sk.dir = -1; }
+        }
+      }
+      var alive = [];
+      for (var si = 0; si < snakes.length; si++) {
+        var s = snakes[si];
+        if (s.warpCd > 0) s.warpCd -= dt;
+        var isAuto = mode === "demo" || !s.player;
+        var dir = isAuto ? aiTurn(s) : turn;
+        s.ang = norm(s.ang + dir * (isAuto ? 4.2 : 3.25) * dt);
+        var nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
+        var ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
+
+        if (portals.length === 2 && (!s.warpCd || s.warpCd <= 0)) {
+          for (var pi = 0; pi < 2; pi++) {
+            var p = portals[pi];
+            if (dist(nx, ny, p.x, p.y) < s.r + p.r - 2) {
+              var out = portals[1 - pi];
+              var dx = out.x - nx, dy = out.y - ny;
+              nx = out.x + Math.cos(s.ang) * (out.r + s.r + 3);
+              ny = out.y + Math.sin(s.ang) * (out.r + s.r + 3);
+              for (var k = 1; k < s.segs.length; k++) {
+                s.segs[k].x += dx;
+                s.segs[k].y += dy;
+              }
+              s.warpCd = 1.1;
+              if (mode === "play") {
+                playSound("warp");
+                addFx(nx, ny - 12, "WARP!", "#9333ea");
+              }
+              break;
+            }
+          }
+        }
+
+        var hitSk = false;
+        for (var j = 0; j < skulls.length; j++) {
+          if (dist(nx, ny, skulls[j].x, skulls[j].y) < s.r + skulls[j].r - 1) {
+            hitSk = true;
+            break;
+          }
+        }
+        if (nx < s.r || nx > W - s.r || ny < s.r || ny > H - s.r || hitWall(nx, ny, s.r) || hitSk) {
+          if (mode === "demo") { initLvl(1, true); return; }
+          if (s.player) { killPlayer(); return; }
+          continue;
+        }
+        s.segs.unshift({ x: nx, y: ny });
+        s.segs.pop();
+        for (var fi = foods.length - 1; fi >= 0; fi--) {
+          var f = foods[fi];
+          if (dist(nx, ny, f.x, f.y) < s.r + f.rad + 2) {
+            foods.splice(fi, 1);
+            addFood();
+            if (mode === "play") {
+              pts += f.val;
+              tot += f.val;
+              saveRec();
+              popPts();
+              addFx(f.x, f.y - 10, "+" + f.val, f.kind === "star" ? "#d97706" : "#16a34a");
+              playSound(f.kind === "star" ? "star" : "eat");
+              var tl = s.segs[s.segs.length - 1];
+              for (var g = 0; g < f.grow; g++) s.segs.push({ x: tl.x, y: tl.y });
+              tPts.textContent = pts + " / 300";
+              if (pts >= 300) {
+                saveRec();
+                playSound("level");
+                mode = lvl >= MAX_LVL ? "win" : "clear";
+                syncOverlay();
+                return;
+              }
+            }
+          }
+        }
+        alive.push(s);
+      }
+      snakes = alive;
+    }
+
+    function addEl(cls, x, y, w, h, bg, borderCol, txt, txtCol) {
+      var d = document.createElement("div");
+      d.className = cls;
+      d.style.left = x + "px";
+      d.style.top = y + "px";
+      if (w) d.style.width = w + "px";
+      if (h) d.style.height = h + "px";
+      if (bg) d.style.background = bg;
+      if (borderCol) d.style.borderColor = borderCol;
+      if (txtCol) d.style.color = txtCol;
+      if (txt) d.textContent = txt;
+      stage.appendChild(d);
+    }
+
+    function renderSnakeDOM(s) {
+      if (!s || !s.segs || !s.segs.length) return;
+      for (var i = s.segs.length - 1; i >= 1; i--) {
+        var p = s.segs[i];
+        var rt = i / s.segs.length;
+        var sz = Math.max(7, Math.round(s.r * 2 * (1.02 - rt * 0.65)));
+        addEl("ent seg", p.x, p.y, sz, sz, s.color, "", "", "");
+      }
+      var h = s.segs[0];
+      var hsz = Math.round(s.r * 2.3);
+      addEl("ent head", h.x, h.y, hsz, hsz, s.color, "", ">", "#0f172a");
+      if (s.rLvl) {
+        addEl("ent fx", h.x, h.y - 16, 0, 0, "", "", "Nv." + s.rLvl, "#f43f5e");
+      }
+    }
+
+    function render() {
+      stage.innerHTML = "";
+      for (var wi = 0; wi < walls.length; wi++) {
+        var w = walls[wi];
+        addEl("wall", w.x, w.y, w.w, w.h, "", "", "");
+      }
+      for (var pi = 0; pi < portals.length; pi++) {
+        var p = portals[pi];
+        addEl("ent portal", p.x, p.y, p.r * 2, p.r * 2, "", p.color, "");
+      }
+      for (var fi = 0; fi < foods.length; fi++) {
+        var f = foods[fi];
+        var col = f.kind === "star" ? "#f59e0b" : (f.kind === "citrus" ? "#fb923c" : "#ef4444");
+        var sz = f.rad * 2;
+        addEl("ent food", f.x, f.y, sz, sz, col, "", "");
+      }
+      for (var ski = 0; ski < skulls.length; ski++) {
+        var sk = skulls[ski];
+        addEl("ent skull", sk.x, sk.y, sk.r * 2, sk.r * 2, "", "", "X", "#ef4444");
+      }
+      for (var si = 0; si < snakes.length; si++) renderSnakeDOM(snakes[si]);
+      for (var bi = 0; bi < fireballs.length; bi++) {
+        var b = fireballs[bi];
+        addEl("ent fire", b.x, b.y, b.r * 2, b.r * 2, "", "", "");
+      }
+      if (raider) {
+        if (raider.warn > 0) {
+          var wx = raider.dir > 0 ? 16 : W - 16;
+          addEl("ent skull", wx, raider.laneY, 21, 21, "#ef4444", "#0f172a", "!", "#ffffff");
+        } else {
+          renderSnakeDOM(raider);
+        }
+      }
+      for (var xi = 0; xi < fxList.length; xi++) {
+        var fx = fxList[xi];
+        addEl("ent fx", fx.x, fx.y, 0, 0, "", "", fx.txt, fx.col);
+      }
+    }
+
+    function onTap(el, fn) {
+      var lock = 0;
+      var fire = function () {
+        var now = Date.now();
+        if (now - lock < 220) return;
+        lock = now;
+        fn();
+      };
+      el.addEventListener("touchstart", fire, { passive: true });
+      el.addEventListener("click", fire);
+    }
+
+    var lastBoxTap = 0;
+    box.addEventListener("touchstart", function () {
+      if (mode !== "play") return;
+      var now = Date.now();
+      if (now - lastBoxTap < 280) {
+        ensureAudio();
+        splitSnakes();
+        lastBoxTap = 0;
+      } else {
+        lastBoxTap = now;
+      }
+    }, { passive: true });
+
+    onTap(bCenter, handleCenterAction);
+    onTap(bPause, togglePause);
+    onTap(overlay, function () { if (mode !== "play") handleCenterAction(); });
+    onTap(document.getElementById("b-cfg"), function () {
+      ensureAudio();
+      cfgPanel.classList.toggle("open");
+      playSound("click");
+    });
+    onTap(document.getElementById("o-diff"), function () {
+      dIdx = (dIdx + 1) % diffs.length;
+      document.getElementById("o-diff").textContent = "Dificultad: " + diffs[dIdx].label;
+      if (mode === "play") initLvl(lvl, false);
+    });
+    onTap(document.getElementById("o-theme"), function () {
+      var d = document.body.classList.toggle("dark");
+      document.getElementById("o-theme").textContent = "Pantalla: " + (d ? "Oscura" : "Clara");
+    });
+    onTap(document.getElementById("o-snd"), function () {
+      snd = !snd;
+      document.getElementById("o-snd").textContent = "Sonido: " + (snd ? "Si" : "No");
+      if (snd) playSound("click");
+    });
+
+    var bL = document.getElementById("b-left");
+    var bR = document.getElementById("b-right");
+    bL.addEventListener("touchstart", function () { ensureAudio(); turn = -1; }, { passive: true });
+    bL.addEventListener("touchend", function () { turn = 0; }, { passive: true });
+    bL.addEventListener("mousedown", function () { ensureAudio(); turn = -1; });
+    bL.addEventListener("mouseup", function () { turn = 0; });
+
+    bR.addEventListener("touchstart", function () { ensureAudio(); turn = 1; }, { passive: true });
+    bR.addEventListener("touchend", function () { turn = 0; }, { passive: true });
+    bR.addEventListener("mousedown", function () { ensureAudio(); turn = 1; });
+    bR.addEventListener("mouseup", function () { turn = 0; });
+
+    function bootGame() {
+      initLvl(1, true);
+      render();
+      setInterval(function () {
+        try {
+          step(0.03);
+          render();
+        } catch (err) {}
+      }, 30);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootGame);
+    } else {
+      bootGame();
+    }
+  </script>
+</body>
+</html>
