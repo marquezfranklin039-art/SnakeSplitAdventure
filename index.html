@@ -304,8 +304,9 @@ body.dark button {
     var turn = 0, audio = null, raider = null, raiderCd = 6.5, portalCd = 3.5;
 
     function syncStageSize() {
-      W = box.clientWidth || 380;
-      H = box.clientHeight || 480;
+      var rect = box.getBoundingClientRect ? box.getBoundingClientRect() : null;
+      W = (rect && rect.width) ? rect.width : (box.clientWidth || 380);
+      H = (rect && rect.height) ? rect.height : (box.clientHeight || 480);
     }
 
     function dist(x1, y1, x2, y2) {
@@ -535,3 +536,7 @@ body.dark button {
         } else {
           ovTitle.textContent = "¡CHOCASTE!";
           ovSub.textContent = "Toca Reiniciar para jugar de nuevo";
+        }
+      }
+      if (mode === "demo") bCenter.textContent = "▶ Jugar";
+      else if (mode === "play") bCenter.textContent = "✂ Dividir";
