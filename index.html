@@ -9,8 +9,7 @@
 body {
   margin: 0;
   width: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
+  min-height: 100dvh;
   padding: 6px;
   background: linear-gradient(160deg, #dbeafe 0%, #f1f5f9 55%, #e2e8f0 100%);
   color: #0f172a;
@@ -18,8 +17,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  overflow: hidden;
+  justify-content: flex-start;
+  overflow-x: hidden;
   touch-action: manipulation;
 }
 body.dark {
@@ -28,7 +27,7 @@ body.dark {
 }
 .bar {
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
@@ -58,9 +57,10 @@ body.dark .pill {
 #box {
   position: relative;
   width: 100%;
-  max-width: 500px;
-  flex: 1 1 auto;
-  min-height: 220px;
+  max-width: 480px;
+  height: calc(100dvh - 118px);
+  min-height: 260px;
+  max-height: 620px;
   border-radius: 18px;
   overflow: hidden;
   border: 3px solid #0284c7;
@@ -182,7 +182,7 @@ body.dark #ov-sub { color: #e2e8f0; }
 #cfg-panel {
   display: none;
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   flex-shrink: 0;
   margin-top: 6px;
   padding: 8px;
@@ -206,7 +206,7 @@ body.dark #cfg-panel { background: #172033; border-color: #334155; }
 body.dark .rec-tag { color: #38bdf8; }
 .pads {
   width: 100%;
-  max-width: 500px;
+  max-width: 480px;
   flex-shrink: 0;
   margin-top: 6px;
   display: grid;
@@ -259,4 +259,279 @@ body.dark button {
   </div>
 
   <div id="cfg-panel">
-    <button type="button" id="o-diff">Dificultad: Estándar</button
+    <button type="button" id="o-diff">Dificultad: Estándar</button>
+    <button type="button" id="o-theme">Pantalla: Clara</button>
+    <button type="button" id="o-snd">Sonido: Sí</button>
+    <div class="rec-tag" id="o-rec">Récord: 0 pts · Nivel Máx: 1</div>
+  </div>
+
+  <div class="pads">
+    <button type="button" id="b-left">◀ Izq</button>
+    <button type="button" class="main" id="b-center">▶ Jugar</button>
+    <button type="button" id="b-right">Der ▶</button>
+  </div>
+
+  <script>
+    var MAX_LVL = 100;
+    var W = 380, H = 480;
+    var box = document.getElementById("box");
+    var stage = document.getElementById("stage");
+    var tLvl = document.getElementById("t-lvl");
+    var tPts = document.getElementById("t-pts");
+    var bPause = document.getElementById("b-pause");
+    var bCenter = document.getElementById("b-center");
+    var cfgPanel = document.getElementById("cfg-panel");
+    var overlay = document.getElementById("overlay");
+    var ovTitle = document.getElementById("ov-title");
+    var ovSub = document.getElementById("ov-sub");
+    var oRec = document.getElementById("o-rec");
+
+    var diffs = [
+      { label: "Tranquila", spd: 54, skulls: 1, move: 24 },
+      { label: "Estándar", spd: 70, skulls: 2, move: 36 },
+      { label: "Extrema", spd: 86, skulls: 3, move: 52 }
+    ];
+
+    var dIdx = 1, snd = true, best = 0, bestLvl = 1;
+    try {
+      best = Number(localStorage.getItem("ss_rec")) || 0;
+      bestLvl = Math.min(MAX_LVL, Number(localStorage.getItem("ss_lvl")) || 1);
+    } catch (e) {}
+
+    var mode = "demo";
+    var lvl = 1, pts = 0, tot = 0;
+    var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [], fxList = [];
+    var turn = 0, audio = null, raider = null, raiderCd = 6.5, portalCd = 3.5;
+
+    function syncStageSize() {
+      W = box.clientWidth || 380;
+      H = box.clientHeight || 480;
+    }
+
+    function dist(x1, y1, x2, y2) {
+      var dx = x1 - x2, dy = y1 - y2;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getRaiderLevel() {
+      return Math.min(25, 1 + Math.floor((lvl - 1) / 4));
+    }
+
+    function saveRec() {
+      if (tot > best) best = tot;
+      if (lvl > bestLvl) bestLvl = Math.min(MAX_LVL, lvl);
+      oRec.textContent = "Récord: " + best + " pts · Nivel Máx: " + bestLvl;
+      try {
+        localStorage.setItem("ss_rec", String(best));
+        localStorage.setItem("ss_lvl", String(bestLvl));
+      } catch (e) {}
+    }
+
+    function addFx(x, y, txt, col) {
+      fxList.push({ x: x, y: y, txt: txt, col: col, life: 0.75 });
+    }
+
+    function popPts() {
+      tPts.classList.add("pop");
+      setTimeout(function () { tPts.classList.remove("pop"); }, 140);
+    }
+
+    function ensureAudio() {
+      if (!snd) return null;
+      try {
+        var A = window.AudioContext || window.webkitAudioContext;
+        if (!A) return null;
+        if (!audio) audio = new A();
+        if (audio.state === "suspended") audio.resume();
+        return audio;
+      } catch (e) { return null; }
+    }
+
+    function tone(a, t, f, d, w, v, e) {
+      var o = a.createOscillator(), g = a.createGain();
+      o.type = w || "triangle";
+      o.frequency.setValueAtTime(f, t);
+      if (e) o.frequency.exponentialRampToValueAtTime(e, t + d);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(v || 0.14, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, t + d);
+      o.connect(g);
+      g.connect(a.destination);
+      o.start(t);
+      o.stop(t + d + 0.02);
+    }
+
+    function playSound(k, rLvl) {
+      if (!snd) return;
+      var a = ensureAudio();
+      if (!a) return;
+      try {
+        var t = a.currentTime;
+        if (k === "eat") {
+          tone(a, t, 523.25, 0.07, "triangle", 0.14, 659.25);
+          tone(a, t + 0.055, 783.99, 0.08, "sine", 0.13, 1046.5);
+        } else if (k === "star") {
+          tone(a, t, 587.33, 0.07, "triangle", 0.15, 783.99);
+          tone(a, t + 0.055, 880, 0.07, "triangle", 0.15, 1046.5);
+          tone(a, t + 0.11, 1174.66, 0.11, "sine", 0.14, 1567.98);
+        } else if (k === "split") {
+          tone(a, t, 330, 0.08, "triangle", 0.14, 554.37);
+          tone(a, t + 0.06, 440, 0.1, "sine", 0.13, 659.25);
+        } else if (k === "start") {
+          tone(a, t, 392, 0.08, "triangle", 0.14, 523.25);
+          tone(a, t + 0.07, 523.25, 0.11, "triangle", 0.14, 783.99);
+        } else if (k === "level") {
+          tone(a, t, 523.25, 0.09, "triangle", 0.15, 523.25);
+          tone(a, t + 0.08, 659.25, 0.09, "triangle", 0.15, 659.25);
+          tone(a, t + 0.16, 783.99, 0.1, "triangle", 0.15, 783.99);
+          tone(a, t + 0.25, 1046.5, 0.18, "sine", 0.16, 1318.5);
+        } else if (k === "alert") {
+          var boost = Math.min(240, ((rLvl || 1) - 1) * 14);
+          tone(a, t, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+          tone(a, t + 0.08, 440 + boost, 0.06, "sawtooth", 0.1, 587 + boost);
+        } else if (k === "fire") {
+          tone(a, t, 360, 0.08, "sawtooth", 0.1, 140);
+        } else if (k === "warp") {
+          tone(a, t, 240, 0.11, "sine", 0.14, 720);
+          tone(a, t + 0.05, 480, 0.11, "triangle", 0.12, 960);
+        } else if (k === "hit") {
+          tone(a, t, 220, 0.14, "sawtooth", 0.15, 98);
+          tone(a, t + 0.1, 130.81, 0.2, "triangle", 0.15, 65.41);
+        } else if (k === "click") {
+          tone(a, t, 660, 0.05, "sine", 0.1, 784);
+        }
+      } catch (e) {}
+    }
+
+    function makeSnake(x, y, ang, len, color, player) {
+      var segs = [];
+      for (var i = 0; i < len; i++) {
+        segs.push({ x: x - Math.cos(ang) * i * 5, y: y - Math.sin(ang) * i * 5 });
+      }
+      return { segs: segs, ang: ang, color: color, player: player, r: 7.5, warpCd: 0 };
+    }
+
+    function hitWall(x, y, r) {
+      for (var i = 0; i < walls.length; i++) {
+        var w = walls[i];
+        var nx = Math.max(w.x, Math.min(x, w.x + w.w));
+        var ny = Math.max(w.y, Math.min(y, w.y + w.h));
+        if (dist(x, y, nx, ny) < r) return true;
+      }
+      return false;
+    }
+
+    function safeSpot(x, y, sw) {
+      if (dist(x, y, W * 0.5, H * 0.72) < 55) return false;
+      for (var s = -1; s <= 1; s++) {
+        if (hitWall(x, y + s * (sw || 0), 15)) return false;
+      }
+      for (var i = 0; i < skulls.length; i++) {
+        if (dist(x, y, skulls[i].x, skulls[i].y) < 34) return false;
+      }
+      return true;
+    }
+
+    function pickPortalSpot(other) {
+      for (var i = 0; i < 45; i++) {
+        var x = 36 + Math.random() * Math.max(40, W - 72);
+        var y = 75 + Math.random() * Math.max(40, H - 110);
+        if (!safeSpot(x, y, 0)) continue;
+        if (other && dist(x, y, other.x, other.y) < 115) continue;
+        return { x: x, y: y };
+      }
+      return { x: other ? W - 45 : 45, y: H * 0.55 };
+    }
+
+    function spawnPortals() {
+      var a = pickPortalSpot(null);
+      var b = pickPortalSpot(a);
+      portals = [
+        { x: a.x, y: a.y, r: 13.5, life: 9.5, color: "#a855f7" },
+        { x: b.x, y: b.y, r: 13.5, life: 9.5, color: "#06b6d4" }
+      ];
+      if (mode === "play") playSound("warp");
+    }
+
+    function updatePortals(dt) {
+      if (portals.length < 2) {
+        portalCd -= dt;
+        if (portalCd <= 0) spawnPortals();
+        return;
+      }
+      portals[0].life -= dt;
+      portals[1].life -= dt;
+      if (portals[0].life <= 0) {
+        portals = [];
+        portalCd = Math.max(4.5, 8.5 - lvl * 0.04);
+      }
+    }
+
+    function addFood() {
+      var r = Math.random();
+      var kind = r < 0.6 ? "berry" : (r < 0.88 ? "citrus" : "star");
+      var x = W * 0.5, y = H * 0.45;
+      for (var i = 0; i < 40; i++) {
+        var tx = 28 + Math.random() * Math.max(40, W - 56);
+        var ty = 72 + Math.random() * Math.max(40, H - 102);
+        if (safeSpot(tx, ty, 0)) { x = tx; y = ty; break; }
+      }
+      foods.push({
+        x: x, y: y, kind: kind,
+        val: kind === "star" ? 40 : (kind === "citrus" ? 20 : 10),
+        grow: kind === "star" ? 3 : 2,
+        rad: kind === "star" ? 7.5 : 6.5
+      });
+    }
+
+    function spawnRaider() {
+      var rLvl = getRaiderLevel();
+      var fromL = Math.random() < 0.5;
+      var sx = fromL ? -14 : W + 14;
+      var sy = 95 + Math.random() * Math.max(40, H - 150);
+      var ang = fromL ? 0 : Math.PI;
+      var segs = [];
+      for (var i = 0; i < 12; i++) {
+        segs.push({ x: sx - Math.cos(ang) * i * 5, y: sy });
+      }
+      raider = {
+        segs: segs, ang: ang, color: "#f43f5e", r: 7.5,
+        rLvl: rLvl, warn: 1.0, dir: fromL ? 1 : -1,
+        laneY: sy, phase: "in",
+        shotCd: Math.max(0.55, 1.35 - (rLvl - 1) * 0.045)
+      };
+      playSound("alert", rLvl);
+    }
+
+    function shootFireball(x, y, ang, spd, rLvl) {
+      var ballSpeed = spd * (1.85 + Math.min(1.1, (rLvl - 1) * 0.06));
+      fireballs.push({
+        x: x + Math.cos(ang) * 11,
+        y: y + Math.sin(ang) * 11,
+        vx: Math.cos(ang) * ballSpeed,
+        vy: Math.sin(ang) * ballSpeed,
+        r: 5.5
+      });
+      if (mode === "play") playSound("fire");
+    }
+
+    function syncOverlay() {
+      if (mode === "play") {
+        overlay.style.display = "none";
+      } else {
+        overlay.style.display = "block";
+        if (mode === "demo") {
+          ovTitle.textContent = "SNAKE SPLIT";
+          ovSub.textContent = "Récord: " + best + " pts · Nv. Máx: " + bestLvl + " · Toca Jugar";
+        } else if (mode === "pause") {
+          ovTitle.textContent = "EN PAUSA";
+          ovSub.textContent = "Toca Seguir para continuar";
+        } else if (mode === "clear") {
+          ovTitle.textContent = "¡NIVEL " + lvl + " LISTO!";
+          ovSub.textContent = "Toca Otro Nivel para continuar";
+        } else if (mode === "win") {
+          ovTitle.textContent = "¡CAMPEÓN 100/100!";
+          ovSub.textContent = "Récord: " + best + " pts · Toca Reiniciar";
+        } else {
+          ovTitle.textContent = "¡CHOCASTE!";
+          ovSub.textContent = "Toca Reiniciar para jugar de nuevo";
