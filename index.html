@@ -42,6 +42,10 @@ body.dark {
   border-radius: 999px;
   padding: 6px 12px;
   box-shadow: 0 3px 0 rgba(2, 132, 199, 0.22);
+  transition: transform 0.12s ease;
+}
+.pill.pop {
+  transform: scale(1.1);
 }
 body.dark .pill {
   background: #172033;
@@ -91,7 +95,7 @@ body.dark #box {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 900;
   color: #0f172a;
 }
@@ -132,6 +136,15 @@ body.dark .wall {
   background: radial-gradient(circle, #fef08a 15%, #f97316 55%, #ef4444 100%);
   box-shadow: 0 0 8px #ef4444;
 }
+.fx {
+  font-size: 12px;
+  font-weight: 900;
+  text-shadow: 0 1px 2px #ffffff;
+  white-space: nowrap;
+}
+body.dark .fx {
+  text-shadow: 0 1px 3px #0f172a;
+}
 #overlay {
   position: absolute;
   left: 16px;
@@ -140,13 +153,13 @@ body.dark .wall {
   padding: 10px 14px;
   border-radius: 14px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.86);
   border: 2px solid #0284c7;
   z-index: 5;
   cursor: pointer;
 }
 body.dark #overlay {
-  background: rgba(15, 23, 42, 0.84);
+  background: rgba(15, 23, 42, 0.86);
   border-color: #38bdf8;
 }
 #ov-title {
@@ -177,6 +190,15 @@ body.dark #ov-sub { color: #e2e8f0; }
 }
 body.dark #cfg-panel { background: #172033; border-color: #334155; }
 #cfg-panel.open { display: flex; }
+.rec-tag {
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0369a1;
+  margin-top: 2px;
+}
+body.dark .rec-tag { color: #38bdf8; }
 .pads {
   width: 100%;
   max-width: 440px;
@@ -234,6 +256,7 @@ body.dark button {
     <button type="button" id="o-diff">Dificultad: Estándar</button>
     <button type="button" id="o-theme">Pantalla: Clara</button>
     <button type="button" id="o-snd">Sonido: Sí</button>
+    <div class="rec-tag" id="o-rec">Récord: 0 pts · Nivel Máx: 1</div>
   </div>
 
   <div class="pads">
@@ -255,6 +278,7 @@ body.dark button {
     var overlay = document.getElementById("overlay");
     var ovTitle = document.getElementById("ov-title");
     var ovSub = document.getElementById("ov-sub");
+    var oRec = document.getElementById("o-rec");
 
     var diffs = [
       { label: "Tranquila", spd: 54, skulls: 1, move: 24 },
@@ -270,7 +294,7 @@ body.dark button {
 
     var mode = "demo";
     var lvl = 1, pts = 0, tot = 0;
-    var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [];
+    var snakes = [], walls = [], skulls = [], foods = [], fireballs = [], portals = [], fxList = [];
     var turn = 0, audio = null, raider = null, raiderCd = 6.5, portalCd = 3.5;
 
     function syncStageSize() {
@@ -290,10 +314,20 @@ body.dark button {
     function saveRec() {
       if (tot > best) best = tot;
       if (lvl > bestLvl) bestLvl = Math.min(MAX_LVL, lvl);
+      oRec.textContent = "Récord: " + best + " pts · Nivel Máx: " + bestLvl;
       try {
         localStorage.setItem("ss_rec", String(best));
         localStorage.setItem("ss_lvl", String(bestLvl));
       } catch (e) {}
+    }
+
+    function addFx(x, y, txt, col) {
+      fxList.push({ x: x, y: y, txt: txt, col: col, life: 0.75 });
+    }
+
+    function popPts() {
+      tPts.classList.add("pop");
+      setTimeout(function () { tPts.classList.remove("pop"); }, 140);
     }
 
     function ensureAudio() {
@@ -482,7 +516,7 @@ body.dark button {
         overlay.style.display = "block";
         if (mode === "demo") {
           ovTitle.textContent = "SNAKE SPLIT";
-          ovSub.textContent = "Récord: " + best + " pts · Toca Jugar";
+          ovSub.textContent = "Récord: " + best + " pts · Nv. Máx: " + bestLvl + " · Toca Jugar";
         } else if (mode === "pause") {
           ovTitle.textContent = "EN PAUSA";
           ovSub.textContent = "Toca Seguir para continuar";
@@ -513,6 +547,7 @@ body.dark button {
       raider = null;
       fireballs = [];
       portals = [];
+      fxList = [];
       portalCd = 3.5;
       raiderCd = Math.max(3.5, 8.5 - getRaiderLevel() * 0.25);
       bPause.textContent = "Pausa";
@@ -609,6 +644,7 @@ body.dark button {
           var part = s.segs.splice(Math.floor(s.segs.length / 2));
           next.push(s);
           next.push(makeSnake(part[0].x, part[0].y, pickAng(part[0].x, part[0].y, s.ang + Math.PI * 0.5, s.r), part.length, extraCols[next.length % extraCols.length], false));
+          addFx(part[0].x, part[0].y - 12, "¡SPLIT!", "#0284c7");
           ok = true;
         } else {
           next.push(s);
@@ -753,6 +789,16 @@ body.dark button {
       syncStageSize();
       var cfg = diffs[dIdx], spd = cfg.spd + (lvl - 1) * 4;
       updatePortals(dt);
+
+      var nextFx = [];
+      for (var xi = 0; xi < fxList.length; xi++) {
+        var fx = fxList[xi];
+        fx.y -= 24 * dt;
+        fx.life -= dt;
+        if (fx.life > 0) nextFx.push(fx);
+      }
+      fxList = nextFx;
+
       if (mode === "play" && (updateRaider(dt, spd) || updateFireballs(dt))) return;
       for (var ski = 0; ski < skulls.length; ski++) {
         var sk = skulls[ski];
@@ -768,7 +814,7 @@ body.dark button {
         if (s.warpCd > 0) s.warpCd -= dt;
         var isAuto = mode === "demo" || !s.player;
         var dir = isAuto ? aiTurn(s) : turn;
-        s.ang = norm(s.ang + dir * (isAuto ? 4.2 : 3.1) * dt);
+        s.ang = norm(s.ang + dir * (isAuto ? 4.2 : 3.25) * dt);
         var nx = s.segs[0].x + Math.cos(s.ang) * spd * dt;
         var ny = s.segs[0].y + Math.sin(s.ang) * spd * dt;
 
@@ -785,7 +831,10 @@ body.dark button {
                 s.segs[k].y += dy;
               }
               s.warpCd = 1.1;
-              if (mode === "play") playSound("warp");
+              if (mode === "play") {
+                playSound("warp");
+                addFx(nx, ny - 12, "¡WARP!", "#9333ea");
+              }
               break;
             }
           }
@@ -814,6 +863,8 @@ body.dark button {
               pts += f.val;
               tot += f.val;
               saveRec();
+              popPts();
+              addFx(f.x, f.y - 10, "+" + f.val, f.kind === "star" ? "#d97706" : "#16a34a");
               playSound(f.kind === "star" ? "star" : "eat");
               var tl = s.segs[s.segs.length - 1];
               for (var g = 0; g < f.grow; g++) s.segs.push({ x: tl.x, y: tl.y });
@@ -833,7 +884,7 @@ body.dark button {
       snakes = alive;
     }
 
-    function addEl(cls, x, y, w, h, bg, borderCol, txt) {
+    function addEl(cls, x, y, w, h, bg, borderCol, txt, rotDeg, txtCol) {
       var d = document.createElement("div");
       d.className = cls;
       d.style.left = x + "px";
@@ -842,6 +893,10 @@ body.dark button {
       if (h) d.style.height = h + "px";
       if (bg) d.style.background = bg;
       if (borderCol) d.style.borderColor = borderCol;
+      if (txtCol) d.style.color = txtCol;
+      if (rotDeg !== null && rotDeg !== undefined) {
+        d.style.transform = "translate(-50%, -50%) rotate(" + rotDeg + "deg)";
+      }
       if (txt) d.textContent = txt;
       stage.appendChild(d);
     }
@@ -852,13 +907,14 @@ body.dark button {
         var p = s.segs[i];
         var rt = i / s.segs.length;
         var sz = Math.max(6.5, Math.round(s.r * 2 * (1.02 - rt * 0.65)));
-        addEl("ent seg", p.x, p.y, sz, sz, s.color, "", "");
+        addEl("ent seg", p.x, p.y, sz, sz, s.color, "", "", null, "");
       }
       var h = s.segs[0];
-      var hsz = Math.round(s.r * 2.2);
-      addEl("ent head", h.x, h.y, hsz, hsz, s.color, "", "••");
+      var hsz = Math.round(s.r * 2.3);
+      var deg = Math.round((s.ang * 180) / Math.PI);
+      addEl("ent head", h.x, h.y, hsz, hsz, s.color, "", "➤", deg, "#0f172a");
       if (s.rLvl) {
-        addEl("ent", h.x, h.y - 16, 0, 0, "", "", "Nv." + s.rLvl);
+        addEl("ent fx", h.x, h.y - 16, 0, 0, "", "", "Nv." + s.rLvl, null, "#f43f5e");
       }
     }
 
@@ -866,34 +922,38 @@ body.dark button {
       stage.innerHTML = "";
       for (var wi = 0; wi < walls.length; wi++) {
         var w = walls[wi];
-        addEl("wall", w.x, w.y, w.w, w.h, "", "", "");
+        addEl("wall", w.x, w.y, w.w, w.h, "", "", "", null, "");
       }
       for (var pi = 0; pi < portals.length; pi++) {
         var p = portals[pi];
-        addEl("ent portal", p.x, p.y, p.r * 2, p.r * 2, "", p.color, "");
+        addEl("ent portal", p.x, p.y, p.r * 2, p.r * 2, "", p.color, "", null, "");
       }
       for (var fi = 0; fi < foods.length; fi++) {
         var f = foods[fi];
         var col = f.kind === "star" ? "#f59e0b" : (f.kind === "citrus" ? "#fb923c" : "#ef4444");
         var sz = f.rad * 2;
-        addEl("ent food", f.x, f.y, sz, sz, col, "", "");
+        addEl("ent food", f.x, f.y, sz, sz, col, "", "", null, "");
       }
       for (var ski = 0; ski < skulls.length; ski++) {
         var sk = skulls[ski];
-        addEl("ent skull", sk.x, sk.y, sk.r * 2, sk.r * 2, "", "", "☠");
+        addEl("ent skull", sk.x, sk.y, sk.r * 2, sk.r * 2, "", "", "☠", null, "");
       }
       for (var si = 0; si < snakes.length; si++) renderSnakeDOM(snakes[si]);
       for (var bi = 0; bi < fireballs.length; bi++) {
         var b = fireballs[bi];
-        addEl("ent fire", b.x, b.y, b.r * 2, b.r * 2, "", "", "");
+        addEl("ent fire", b.x, b.y, b.r * 2, b.r * 2, "", "", "", null, "");
       }
       if (raider) {
         if (raider.warn > 0) {
           var wx = raider.dir > 0 ? 16 : W - 16;
-          addEl("ent skull", wx, raider.laneY, 21, 21, "#ef4444", "#0f172a", "!");
+          addEl("ent skull", wx, raider.laneY, 21, 21, "#ef4444", "#0f172a", "!", null, "#ffffff");
         } else {
           renderSnakeDOM(raider);
         }
+      }
+      for (var xi = 0; xi < fxList.length; xi++) {
+        var fx = fxList[xi];
+        addEl("ent fx", fx.x, fx.y, 0, 0, "", "", fx.txt, null, fx.col);
       }
     }
 
@@ -908,6 +968,19 @@ body.dark button {
       el.addEventListener("touchstart", fire, { passive: true });
       el.addEventListener("click", fire);
     }
+
+    var lastBoxTap = 0;
+    box.addEventListener("touchstart", function () {
+      if (mode !== "play") return;
+      var now = Date.now();
+      if (now - lastBoxTap < 280) {
+        ensureAudio();
+        splitSnakes();
+        lastBoxTap = 0;
+      } else {
+        lastBoxTap = now;
+      }
+    }, { passive: true });
 
     onTap(bCenter, handleCenterAction);
     onTap(bPause, togglePause);
