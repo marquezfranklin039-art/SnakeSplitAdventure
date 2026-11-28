@@ -2,130 +2,215 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Snake Split</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Snake Split Adventure</title>
 <style>
-body {
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html, body {
   margin: 0;
-  padding: 6px;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  touch-action: manipulation;
+}
+body {
   background-color: #090d16;
   color: #f8fafc;
-  font-family: Arial, sans-serif;
-  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px;
 }
-.top {
-  max-width: 360px;
-  margin: 0 auto 6px auto;
-  font-size: 12px;
+.hud {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11px;
   font-weight: bold;
 }
-.pill {
-  display: inline-block;
+.tag {
   background-color: #111827;
+  color: #4ade80;
   border: 2px solid #22c55e;
-  border-radius: 6px;
-  padding: 4px 7px;
-  margin: 2px;
+  border-radius: 8px;
+  padding: 4px 6px;
+  white-space: nowrap;
 }
-#box {
+.tag.gold {
+  color: #facc15;
+  border-color: #eab308;
+}
+.tag.fire {
+  color: #fb923c;
+  border-color: #f97316;
+}
+.hud-btn {
+  background-color: #1e293b;
+  color: #ffffff;
+  border: 2px solid #38bdf8;
+  border-radius: 8px;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+}
+#arena-box {
   position: relative;
   width: 300px;
   height: 400px;
-  margin: 0 auto 8px auto;
-  background-color: #050811;
   border: 3px solid #22c55e;
   border-radius: 10px;
+  background-color: #050811;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
 }
 #cv {
   display: block;
   width: 300px;
   height: 400px;
 }
-#card {
+#banner-lvl {
+  display: none;
   position: absolute;
-  top: 70px;
-  left: 16px;
-  right: 16px;
-  background-color: #111827;
-  border: 2px solid #f97316;
-  border-radius: 10px;
-  padding: 12px;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  background-color: #eab308;
+  color: #090d16;
+  font-size: 11px;
+  font-weight: bold;
+  text-align: center;
+  padding: 4px;
+  border-radius: 8px;
+  z-index: 5;
 }
-#go {
+#modal {
+  position: absolute;
+  top: 64px;
+  left: 14px;
+  right: 14px;
+  background-color: #111827;
+  border: 3px solid #f97316;
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+  z-index: 10;
+}
+#m-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fb923c;
+}
+#m-desc {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #e2e8f0;
+}
+#m-btn {
+  margin-top: 10px;
   background-color: #22c55e;
   color: #050811;
   border: none;
   border-radius: 8px;
-  padding: 9px 18px;
+  padding: 9px 22px;
   font-size: 14px;
   font-weight: bold;
-  margin-top: 8px;
+  cursor: pointer;
 }
-.pad {
+.dpad {
+  width: 100%;
   max-width: 320px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 2px;
 }
-.pad button {
-  width: 96px;
-  padding: 10px 4px;
-  margin: 2px;
-  font-size: 14px;
-  font-weight: bold;
-  border-radius: 8px;
-  border: 2px solid #38bdf8;
+.dpad-btn {
   background-color: #1e293b;
   color: #ffffff;
+  border: 2px solid #38bdf8;
+  border-radius: 10px;
+  padding: 10px 4px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.dpad-btn:active {
+  background-color: #0284c7;
+}
+.dpad-btn.go-btn {
+  background-color: #f97316;
+  border-color: #fde047;
+  color: #090d16;
 }
 </style>
 </head>
 <body>
-  <div class="top">
-    <span class="pill" id="pts">0 pts</span>
-    <span class="pill" id="lvl">Nv 1</span>
-    <span class="pill" style="border-color:#f97316;color:#fb923c;">2 Intrusas</span>
-    <button type="button" class="pill" style="background:#1e293b;color:#fff;" id="snd">Audio: Si</button>
-    <button type="button" class="pill" style="background:#1e293b;color:#fff;" id="pau">Pausa</button>
+  <div class="hud">
+    <span class="tag gold" id="ui-score">0 pts</span>
+    <span class="tag" id="ui-lvl">Nv 1</span>
+    <span class="tag fire" id="ui-int">2 Intrusas</span>
+    <button type="button" class="hud-btn" id="btn-pause">Pausa</button>
+    <button type="button" class="hud-btn" id="btn-snd">Audio: Si</button>
   </div>
 
-  <div id="box">
+  <div id="arena-box">
     <canvas id="cv" width="300" height="400"></canvas>
-    <div id="card">
-      <div id="ctitle" style="font-size:18px;font-weight:bold;color:#fb923c;">SNAKE SPLIT</div>
-      <div id="cdesc" style="font-size:12px;margin-top:5px;">Come frutas y divide tu serpiente. Esquiva las 2 intrusas y sus bolas de fuego.</div>
-      <button type="button" id="go">JUGAR</button>
+    <div id="banner-lvl">NIVEL COMPLETADO</div>
+    <div id="modal">
+      <div id="m-title">SNAKE SPLIT ADVENTURE</div>
+      <div id="m-desc">
+        Come frutas, divide tu serpiente y esquiva las <b>calaveras</b>.<br />
+        <b>2 serpientes intrusas</b> disparan bolas de fuego.
+      </div>
+      <button type="button" id="m-btn">JUGAR</button>
     </div>
   </div>
 
-  <div class="pad">
-    <div>
-      <button type="button" id="b-start" style="background:#f97316;color:#050811;border-color:#fde047;">Jugar</button>
-      <button type="button" id="b-up">Arriba</button>
-      <button type="button" id="b-down">Abajo</button>
-    </div>
-    <div>
-      <button type="button" id="b-left">Izq</button>
-      <button type="button" id="b-right">Der</button>
-      <button type="button" id="b-pause">Pausa</button>
-    </div>
+  <div class="dpad">
+    <button type="button" class="dpad-btn go-btn" id="d-start">Jugar</button>
+    <button type="button" class="dpad-btn" id="d-up">Arriba</button>
+    <button type="button" class="dpad-btn" id="d-down">Abajo</button>
+    <button type="button" class="dpad-btn" id="d-left">Izq</button>
+    <button type="button" class="dpad-btn" id="d-right">Der</button>
+    <button type="button" class="dpad-btn" id="d-p2">Pausa</button>
   </div>
 
   <script>
   (function () {
-    var COLS = 15, ROWS = 20, S = 20;
+    var COLS = 15;
+    var ROWS = 20;
+    var S = 20;
+
     var cv = document.getElementById("cv");
     var ctx = cv.getContext("2d");
-    var card = document.getElementById("card");
-    var ctitle = document.getElementById("ctitle");
-    var cdesc = document.getElementById("cdesc");
-    var goBtn = document.getElementById("go");
-    var ptsEl = document.getElementById("pts");
-    var lvlEl = document.getElementById("lvl");
-    var sndBtn = document.getElementById("snd");
-    var pauBtn = document.getElementById("pau");
+    var uiScore = document.getElementById("ui-score");
+    var uiLvl = document.getElementById("ui-lvl");
+    var bannerLvl = document.getElementById("banner-lvl");
+    var modal = document.getElementById("modal");
+    var mTitle = document.getElementById("m-title");
+    var mDesc = document.getElementById("m-desc");
+    var mBtn = document.getElementById("m-btn");
+    var btnPause = document.getElementById("btn-pause");
+    var btnSnd = document.getElementById("btn-snd");
 
-    var soundOn = true, actx = null;
-    function getAc() {
-      if (!soundOn) return null;
+    var sndOn = true;
+    var actx = null;
+
+    function getActx() {
+      if (!sndOn) return null;
       try {
         var C = window.AudioContext || window.webkitAudioContext;
         if (!C) return null;
@@ -134,201 +219,146 @@ body {
         return actx;
       } catch (e) { return null; }
     }
-    function tone(f, d, t, v, f2) {
-      var a = getAc();
+
+    function beep(f, d, type, vol, f2) {
+      var a = getActx();
       if (!a) return;
       try {
-        var now = a.currentTime;
+        var t = a.currentTime;
         var o = a.createOscillator();
         var g = a.createGain();
-        o.type = t || "square";
-        o.frequency.setValueAtTime(f, now);
+        o.type = type || "square";
+        o.frequency.setValueAtTime(f, t);
         if (f2 && o.frequency.exponentialRampToValueAtTime) {
-          o.frequency.exponentialRampToValueAtTime(Math.max(25, f2), now + d);
+          o.frequency.exponentialRampToValueAtTime(Math.max(25, f2), t + d);
         }
-        g.gain.setValueAtTime(v || 0.07, now);
+        g.gain.setValueAtTime(vol || 0.07, t);
         if (g.gain.exponentialRampToValueAtTime) {
-          g.gain.exponentialRampToValueAtTime(0.001, now + d);
+          g.gain.exponentialRampToValueAtTime(0.001, t + d);
         }
         o.connect(g); g.connect(a.destination);
-        o.start(now); o.stop(now + d + 0.02);
+        o.start(t); o.stop(t + d + 0.02);
       } catch (e) {}
     }
 
-    var state = "idle", score = 0, lvl = 1, eaten = 0;
-    var snakes = [], intruders = [], balls = [], fruit = { x: 10, y: 10 };
-    var tickMove = 0, tickFire = 0;
+    function sfxEat() { beep(520, 0.08, "square", 0.07, 880); }
+    function sfxSplit() { beep(380, 0.1, "triangle", 0.08, 760); }
+    function sfxFire() { beep(260, 0.08, "sawtooth", 0.07, 110); }
+    function sfxLevel() {
+      beep(587, 0.08, "square", 0.08, 784);
+      setTimeout(function () { beep(880, 0.12, "square", 0.08, 1174); }, 75);
+    }
+    function sfxDie() {
+      beep(240, 0.14, "sawtooth", 0.09, 130);
+      setTimeout(function () { beep(140, 0.22, "sawtooth", 0.09, 65); }, 120);
+    }
 
-    function resetEntities() {
+    var mode = "idle";
+    var score = 0;
+    var level = 1;
+    var eatenInLevel = 0;
+    var bannerTicks = 0;
+
+    var snakes = [];
+    var intruders = [];
+    var skulls = [];
+    var fireballs = [];
+    var fruit = { x: 10, y: 10 };
+    var moveTick = 0;
+    var fireTick = 0;
+
+    function initSkulls() {
+      skulls = [
+        { x: 5, y: 5 },
+        { x: 9, y: 14 },
+        { x: 11, y: 5 }
+      ];
+    }
+
+    function initSnakes() {
       snakes = [
-        { dir: { x: 1, y: 0 }, body: [{ x: 4, y: 10 }, { x: 3, y: 10 }, { x: 2, y: 10 }], col: "#22c55e" }
+        {
+          dir: { x: 1, y: 0 },
+          body: [{ x: 4, y: 10 }, { x: 3, y: 10 }, { x: 2, y: 10 }],
+          color: "#22c55e",
+          headColor: "#86efac"
+        }
       ];
+    }
+
+    function initIntruders() {
       intruders = [
-        { dir: { x: 0, y: 1 }, body: [{ x: 2, y: 2 }, { x: 2, y: 1 }], col: "#ef4444", cd: 16 },
-        { dir: { x: 0, y: -1 }, body: [{ x: COLS - 3, y: ROWS - 3 }, { x: COLS - 3, y: ROWS - 2 }], col: "#f97316", cd: 26 }
+        {
+          id: 1,
+          dir: { x: 1, y: 0 },
+          body: [{ x: 3, y: 2 }, { x: 2, y: 2 }, { x: 1, y: 2 }],
+          color: "#ef4444",
+          headColor: "#fca5a5",
+          cooldown: 16
+        },
+        {
+          id: 2,
+          dir: { x: -1, y: 0 },
+          body: [{ x: COLS - 4, y: ROWS - 3 }, { x: COLS - 3, y: ROWS - 3 }, { x: COLS - 2, y: ROWS - 3 }],
+          color: "#f97316",
+          headColor: "#fdba74",
+          cooldown: 26
+        }
       ];
-      balls = [];
-      fruit = { x: 10, y: 10 };
     }
 
-    function die(msg) {
-      state = "over";
-      tone(220, 0.14, "sawtooth", 0.09, 120);
-      setTimeout(function () { tone(130, 0.22, "sawtooth", 0.09, 60); }, 120);
-      ctitle.textContent = "FIN DEL JUEGO";
-      cdesc.textContent = msg + " Puntaje: " + score + " pts";
-      goBtn.textContent = "REINTENTAR";
-      card.style.display = "block";
-    }
-
-    function startGame() {
-      getAc();
-      score = 0; lvl = 1; eaten = 0; tickMove = 0; tickFire = 0;
-      ptsEl.textContent = "0 pts";
-      lvlEl.textContent = "Nv 1";
-      pauBtn.textContent = "Pausa";
-      resetEntities();
-      card.style.display = "none";
-      state = "play";
-      tone(440, 0.09, "square", 0.07, 740);
-      draw();
-    }
-
-    function togglePause() {
-      if (state === "play") {
-        state = "pause";
-        ctitle.textContent = "PAUSA";
-        cdesc.textContent = "Juego en pausa.";
-        goBtn.textContent = "CONTINUAR";
-        card.style.display = "block";
-        pauBtn.textContent = "Seguir";
-      } else if (state === "pause") {
-        state = "play";
-        card.style.display = "none";
-        pauBtn.textContent = "Pausa";
-      }
-    }
-
-    function moveFruit() {
-      for (var t = 0; t < 60; t++) {
-        var fx = Math.floor(Math.random() * COLS);
-        var fy = Math.floor(Math.random() * ROWS);
-        var hit = false;
-        for (var i = 0; i < snakes.length; i++) {
-          for (var b = 0; b < snakes[i].body.length; b++) {
-            if (snakes[i].body[b].x === fx && snakes[i].body[b].y === fy) hit = true;
-          }
-        }
-        for (var j = 0; j < intruders.length; j++) {
-          for (var ib = 0; ib < intruders[j].body.length; ib++) {
-            if (intruders[j].body[ib].x === fx && intruders[j].body[ib].y === fy) hit = true;
-          }
-        }
-        if (!hit) { fruit = { x: fx, y: fy }; return; }
-      }
-    }
-
-    function stepPlayer() {
-      for (var i = 0; i < snakes.length; i++) {
-        var s = snakes[i];
-        var h = s.body[0];
-        var nx = h.x + s.dir.x, ny = h.y + s.dir.y;
-        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) { die("Chocaste con el borde."); return; }
-        for (var b = 0; b < s.body.length; b++) {
-          if (s.body[b].x === nx && s.body[b].y === ny) { die("Chocaste contigo mismo."); return; }
-        }
-        for (var j = 0; j < intruders.length; j++) {
-          for (var ib = 0; ib < intruders[j].body.length; ib++) {
-            if (intruders[j].body[ib].x === nx && intruders[j].body[ib].y === ny) { die("Chocaste con una intrusa."); return; }
-          }
-        }
-        s.body.unshift({ x: nx, y: ny });
-        if (nx === fruit.x && ny === fruit.y) {
-          score += 50; eaten++;
-          ptsEl.textContent = score + " pts";
-          tone(520, 0.08, "square", 0.07, 880);
-          if (eaten === 2 && snakes.length < 2 && s.body.length >= 3) {
-            var tail = s.body.pop();
-            snakes.push({ dir: { x: -s.dir.x, y: -s.dir.y || 1 }, body: [{ x: tail.x, y: tail.y }], col: "#38bdf8" });
-            tone(380, 0.1, "triangle", 0.08, 760);
-          }
-          if (eaten >= 5) {
-            eaten = 0; lvl++;
-            lvlEl.textContent = "Nv " + lvl;
-            tone(660, 0.1, "square", 0.08, 1046);
-          }
-          moveFruit();
-        } else {
-          s.body.pop();
-        }
-      }
-    }
-
-    function stepIntruders() {
-      var dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
-      for (var i = 0; i < intruders.length; i++) {
-        var intr = intruders[i];
-        var h = intr.body[0];
-        var opts = [];
-        for (var d = 0; d < dirs.length; d++) {
-          var tx = h.x + dirs[d].x, ty = h.y + dirs[d].y;
-          if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && !(dirs[d].x === -intr.dir.x && dirs[d].y === -intr.dir.y)) {
-            opts.push(dirs[d]);
-          }
-        }
-        if (opts.length && Math.random() < 0.45) intr.dir = opts[Math.floor(Math.random() * opts.length)];
-        var nx = h.x + intr.dir.x, ny = h.y + intr.dir.y;
-        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
-          intr.dir = { x: -intr.dir.x, y: -intr.dir.y };
-          nx = Math.min(COLS - 1, Math.max(0, h.x + intr.dir.x));
-          ny = Math.min(ROWS - 1, Math.max(0, h.y + intr.dir.y));
-        }
-        intr.body.unshift({ x: nx, y: ny });
-        intr.body.pop();
-        for (var s = 0; s < snakes.length; s++) {
-          for (var sb = 0; sb < snakes[s].body.length; sb++) {
-            if (snakes[s].body[sb].x === nx && snakes[s].body[sb].y === ny) { die("Te atrapo una intrusa."); return; }
-          }
-        }
-        intr.cd--;
-        if (intr.cd <= 0) {
-          intr.cd = Math.max(14, 24 - lvl * 2);
-          var target = snakes[0] ? snakes[0].body[0] : { x: 7, y: 10 };
-          var dx = target.x - nx, dy = target.y - ny;
-          var vx = 0, vy = 0;
-          if (Math.abs(dx) >= Math.abs(dy)) vx = dx >= 0 ? 1 : -1;
-          else vy = dy >= 0 ? 1 : -1;
-          balls.push({ x: nx + vx, y: ny + vy, vx: vx, vy: vy });
-          tone(250, 0.07, "sawtooth", 0.06, 110);
-        }
-      }
-    }
-
-    function stepBalls() {
-      var next = [];
-      for (var i = 0; i < balls.length; i++) {
-        var fb = balls[i];
-        fb.x += fb.vx; fb.y += fb.vy;
-        if (fb.x < 0 || fb.x >= COLS || fb.y < 0 || fb.y >= ROWS) continue;
-        for (var s = 0; s < snakes.length; s++) {
-          for (var sb = 0; sb < snakes[s].body.length; sb++) {
-            if (snakes[s].body[sb].x === fb.x && snakes[s].body[sb].y === fb.y) { die("Te dio una bola de fuego."); return; }
-          }
-        }
-        next.push(fb);
-      }
-      balls = next;
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, cv.width, cv.height);
-      ctx.strokeStyle = "rgba(148,163,184,0.14)";
-      for (var c = 1; c < COLS; c++) { ctx.beginPath(); ctx.moveTo(c * S, 0); ctx.lineTo(c * S, cv.height); ctx.stroke(); }
-      for (var r = 1; r < ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r * S); ctx.lineTo(cv.width, r * S); ctx.stroke(); }
-
-      ctx.fillStyle = "#facc15";
-      ctx.beginPath(); ctx.arc(fruit.x * S + S / 2, fruit.y * S + S / 2, S * 0.38, 0, Math.PI * 2); ctx.fill();
-
+    function isOccupied(x, y) {
       for (var i = 0; i < snakes.length; i++) {
         for (var b = 0; b < snakes[i].body.length; b++) {
-          ctx.fillStyle = b === 0 ? "#bbf7d0
+          if (snakes[i].body[b].x === x && snakes[i].body[b].y === y) return true;
+        }
+      }
+      for (var j = 0; j < intruders.length; j++) {
+        for (var ib = 0; ib < intruders[j].body.length; ib++) {
+          if (intruders[j].body[ib].x === x && intruders[j].body[ib].y === y) return true;
+        }
+      }
+      for (var k = 0; k < skulls.length; k++) {
+        if (skulls[k].x === x && skulls[k].y === y) return true;
+      }
+      return false;
+    }
+
+    function placeFruit() {
+      for (var tries = 0; tries < 90; tries++) {
+        var fx = Math.floor(Math.random() * COLS);
+        var fy = Math.floor(Math.random() * ROWS);
+        if (!isOccupied(fx, fy)) {
+          fruit = { x: fx, y: fy };
+          return;
+        }
+      }
+      fruit = { x: 7, y: 10 };
+    }
+
+    function addExtraSkull() {
+      if (skulls.length >= 7) return;
+      for (var tries = 0; tries < 60; tries++) {
+        var sx = Math.floor(Math.random() * COLS);
+        var sy = Math.floor(Math.random() * ROWS);
+        if (!isOccupied(sx, sy) && !(sx === fruit.x && sy === fruit.y)) {
+          skulls.push({ x: sx, y: sy });
+          return;
+        }
+      }
+    }
+
+    function gameOver(reason) {
+      mode = "over";
+      sfxDie();
+      mTitle.textContent = "FIN DEL JUEGO";
+      mDesc.innerHTML = reason + "<br />Puntaje: <b>" + score + " pts</b>";
+      mBtn.textContent = "REINTENTAR";
+      modal.style.display = "block";
+    }
+
+    function startMatch() {
+      getActx();
+      score = 0;
+      level = 1;
+      eatenInLevel = 0;
