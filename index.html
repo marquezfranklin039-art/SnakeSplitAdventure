@@ -156,17 +156,19 @@ body {
     }
 
     var state = "idle", score = 0, lvl = 1, eaten = 0;
-    var snakes = [], intruders = [], balls = [], fruit = { x: 7, y: 9 };
+    var snakes = [], intruders = [], balls = [], fruit = { x: 10, y: 10 };
     var tickMove = 0, tickFire = 0;
 
     function resetEntities() {
-      snakes = [{ dir: { x: 1, y: 0 }, body: [{ x: 4, y: 11 }, { x: 3, y: 11 }, { x: 2, y: 11 }], col: "#22c55e" }];
+      snakes = [
+        { dir: { x: 1, y: 0 }, body: [{ x: 4, y: 10 }, { x: 3, y: 10 }, { x: 2, y: 10 }], col: "#22c55e" }
+      ];
       intruders = [
-        { dir: { x: 1, y: 0 }, body: [{ x: 2, y: 3 }, { x: 1, y: 3 }, { x: 0, y: 3 }], col: "#ef4444", cd: 14 },
-        { dir: { x: -1, y: 0 }, body: [{ x: COLS - 3, y: ROWS - 4 }, { x: COLS - 2, y: ROWS - 4 }, { x: COLS - 1, y: ROWS - 4 }], col: "#f97316", cd: 24 }
+        { dir: { x: 0, y: 1 }, body: [{ x: 2, y: 2 }, { x: 2, y: 1 }], col: "#ef4444", cd: 16 },
+        { dir: { x: 0, y: -1 }, body: [{ x: COLS - 3, y: ROWS - 3 }, { x: COLS - 3, y: ROWS - 2 }], col: "#f97316", cd: 26 }
       ];
       balls = [];
-      fruit = { x: 8, y: 9 };
+      fruit = { x: 10, y: 10 };
     }
 
     function die(msg) {
@@ -290,8 +292,8 @@ body {
         }
         intr.cd--;
         if (intr.cd <= 0) {
-          intr.cd = Math.max(12, 22 - lvl * 2);
-          var target = snakes[0] ? snakes[0].body[0] : { x: 7, y: 9 };
+          intr.cd = Math.max(14, 24 - lvl * 2);
+          var target = snakes[0] ? snakes[0].body[0] : { x: 7, y: 10 };
           var dx = target.x - nx, dy = target.y - ny;
           var vx = 0, vy = 0;
           if (Math.abs(dx) >= Math.abs(dy)) vx = dx >= 0 ? 1 : -1;
@@ -329,63 +331,4 @@ body {
 
       for (var i = 0; i < snakes.length; i++) {
         for (var b = 0; b < snakes[i].body.length; b++) {
-          ctx.fillStyle = b === 0 ? "#bbf7d0" : snakes[i].col;
-          ctx.fillRect(snakes[i].body[b].x * S + 1, snakes[i].body[b].y * S + 1, S - 2, S - 2);
-        }
-      }
-      for (var j = 0; j < intruders.length; j++) {
-        for (var ib = 0; ib < intruders[j].body.length; ib++) {
-          ctx.fillStyle = ib === 0 ? "#fde047" : intruders[j].col;
-          ctx.fillRect(intruders[j].body[ib].x * S + 1, intruders[j].body[ib].y * S + 1, S - 2, S - 2);
-        }
-      }
-      for (var f = 0; f < balls.length; f++) {
-        ctx.fillStyle = "#ff5722";
-        ctx.beginPath(); ctx.arc(balls[f].x * S + S / 2, balls[f].y * S + S / 2, S * 0.35, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-
-    function dir(dx, dy) {
-      getAc();
-      if (state !== "play") return;
-      for (var i = 0; i < snakes.length; i++) {
-        if (snakes[i].dir.x === -dx && snakes[i].dir.y === -dy) continue;
-        snakes[i].dir = { x: dx, y: dy };
-      }
-    }
-
-    goBtn.addEventListener("click", function () { if (state === "pause") togglePause(); else startGame(); });
-    document.getElementById("b-start").addEventListener("click", startGame);
-    pauBtn.addEventListener("click", togglePause);
-    document.getElementById("b-pause").addEventListener("click", togglePause);
-    sndBtn.addEventListener("click", function () {
-      soundOn = !soundOn;
-      sndBtn.textContent = "Audio: " + (soundOn ? "Si" : "No");
-      if (soundOn) { getAc(); tone(500, 0.06, "square", 0.06, 750); }
-    });
-    document.getElementById("b-up").addEventListener("click", function () { dir(0, -1); });
-    document.getElementById("b-down").addEventListener("click", function () { dir(0, 1); });
-    document.getElementById("b-left").addEventListener("click", function () { dir(-1, 0); });
-    document.getElementById("b-right").addEventListener("click", function () { dir(1, 0); });
-
-    resetEntities();
-    draw();
-
-    setInterval(function () {
-      if (state !== "play") { draw(); return; }
-      tickMove++; tickFire++;
-      var rate = Math.max(2, 4 - Math.floor(lvl / 3));
-      if (tickMove >= rate) {
-        tickMove = 0;
-        stepPlayer();
-        if (state !== "play") { draw(); return; }
-        stepIntruders();
-        if (state !== "play") { draw(); return; }
-      }
-      if (tickFire >= 2) { tickFire = 0; stepBalls(); }
-      draw();
-    }, 65);
-  })();
-  </script>
-</body>
-</html>
+          ctx.fillStyle = b === 0 ? "#bbf7d0
