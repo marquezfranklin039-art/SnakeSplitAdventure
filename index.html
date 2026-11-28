@@ -25,7 +25,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 6px;
   padding: 6px;
 }
@@ -44,7 +44,7 @@ body {
   color: #4ade80;
   border: 2px solid #22c55e;
   border-radius: 8px;
-  padding: 4px 6px;
+  padding: 5px 7px;
   white-space: nowrap;
 }
 .tag.gold {
@@ -60,246 +60,45 @@ body {
   color: #ffffff;
   border: 2px solid #38bdf8;
   border-radius: 8px;
-  padding: 4px 7px;
+  padding: 5px 8px;
   font-size: 11px;
   font-weight: bold;
   cursor: pointer;
 }
 #arena-box {
   position: relative;
-  width: 260px;
-  height: 360px;
+  width: 92vw;
+  max-width: 360px;
+  height: 440px;
+  max-height: calc(100vh - 156px);
   border: 3px solid #22c55e;
-  border-radius: 10px;
+  border-radius: 12px;
   background-color: #050811;
   overflow: hidden;
-  box-shadow: 0 0 18px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
 }
 #cv {
   display: block;
-  width: 260px;
-  height: 360px;
+  width: 100%;
+  height: 100%;
 }
 #banner-lvl {
   display: none;
   position: absolute;
-  top: 6px;
-  left: 8px;
-  right: 8px;
+  top: 8px;
+  left: 10px;
+  right: 10px;
   background-color: #eab308;
   color: #090d16;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   text-align: center;
-  padding: 4px;
+  padding: 5px;
   border-radius: 8px;
   z-index: 5;
 }
 #modal {
   position: absolute;
-  top: 52px;
-  left: 12px;
-  right: 12px;
-  background-color: #111827;
-  border: 3px solid #f97316;
-  border-radius: 12px;
-  padding: 12px 10px;
-  text-align: center;
-  z-index: 10;
-}
-#m-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: #fb923c;
-}
-#m-desc {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.35;
-  color: #e2e8f0;
-}
-#m-btn {
-  margin-top: 10px;
-  background-color: #22c55e;
-  color: #050811;
-  border: none;
-  border-radius: 8px;
-  padding: 9px 20px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.dpad {
-  width: 100%;
-  max-width: 310px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-top: 2px;
-}
-.dpad-btn {
-  background-color: #1e293b;
-  color: #ffffff;
-  border: 2px solid #38bdf8;
-  border-radius: 10px;
-  padding: 10px 4px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.dpad-btn:active {
-  background-color: #0284c7;
-}
-.dpad-btn.go-btn {
-  background-color: #f97316;
-  border-color: #fde047;
-  color: #090d16;
-}
-</style>
-</head>
-<body>
-  <div class="hud">
-    <span class="tag gold" id="ui-score">0 pts</span>
-    <span class="tag" id="ui-lvl">Nv 1</span>
-    <span class="tag fire" id="ui-int">2 Intrusas</span>
-    <button type="button" class="hud-btn" id="btn-pause">Pausa</button>
-    <button type="button" class="hud-btn" id="btn-snd">Audio: Si</button>
-  </div>
-
-  <div id="arena-box">
-    <canvas id="cv" width="260" height="360"></canvas>
-    <div id="banner-lvl">NIVEL COMPLETADO</div>
-    <div id="modal">
-      <div id="m-title">SNAKE SPLIT</div>
-      <div id="m-desc">
-        Come frutas y divide tu serpiente.<br />
-        <b>2 serpientes intrusas</b> disparan fuego: esquiva las bolas de fuego.
-      </div>
-      <button type="button" id="m-btn">JUGAR</button>
-    </div>
-  </div>
-
-  <div class="dpad">
-    <button type="button" class="dpad-btn go-btn" id="d-start">Jugar</button>
-    <button type="button" class="dpad-btn" id="d-up">Arriba</button>
-    <button type="button" class="dpad-btn" id="d-down">Abajo</button>
-    <button type="button" class="dpad-btn" id="d-left">Izq</button>
-    <button type="button" class="dpad-btn" id="d-right">Der</button>
-    <button type="button" class="dpad-btn" id="d-p2">Pausa</button>
-  </div>
-
-  <script>
-  try {
-    (function () {
-      var COLS = 13;
-      var ROWS = 18;
-      var S = 20;
-
-      var cv = document.getElementById("cv");
-      var ctx = cv.getContext("2d");
-      var uiScore = document.getElementById("ui-score");
-      var uiLvl = document.getElementById("ui-lvl");
-      var bannerLvl = document.getElementById("banner-lvl");
-      var modal = document.getElementById("modal");
-      var mTitle = document.getElementById("m-title");
-      var mDesc = document.getElementById("m-desc");
-      var mBtn = document.getElementById("m-btn");
-      var btnPause = document.getElementById("btn-pause");
-      var btnSnd = document.getElementById("btn-snd");
-
-      var sndOn = true;
-      var actx = null;
-
-      function getActx() {
-        if (!sndOn) return null;
-        try {
-          var C = window.AudioContext || window.webkitAudioContext;
-          if (!C) return null;
-          if (!actx) actx = new C();
-          if (actx.state === "suspended" && actx.resume) actx.resume();
-          return actx;
-        } catch (e) {
-          return null;
-        }
-      }
-
-      function beep(f, d, type, vol, f2) {
-        try {
-          var a = getActx();
-          if (!a) return;
-          var t = a.currentTime;
-          var o = a.createOscillator();
-          var g = a.createGain();
-          o.type = type || "square";
-          o.frequency.setValueAtTime(f, t);
-          if (f2 && o.frequency.exponentialRampToValueAtTime) {
-            o.frequency.exponentialRampToValueAtTime(Math.max(25, f2), t + d);
-          }
-          g.gain.setValueAtTime(vol || 0.07, t);
-          if (g.gain.exponentialRampToValueAtTime) {
-            g.gain.exponentialRampToValueAtTime(0.001, t + d);
-          }
-          o.connect(g);
-          g.connect(a.destination);
-          o.start(t);
-          o.stop(t + d + 0.02);
-        } catch (e) {}
-      }
-
-      function sfxEat() { beep(520, 0.08, "square", 0.07, 880); }
-      function sfxSplit() { beep(380, 0.1, "triangle", 0.08, 760); }
-      function sfxFire() { beep(260, 0.08, "sawtooth", 0.07, 110); }
-      function sfxLevel() {
-        beep(587, 0.08, "square", 0.08, 784);
-        setTimeout(function () { beep(880, 0.12, "square", 0.08, 1174); }, 75);
-      }
-      function sfxDie() {
-        beep(240, 0.14, "sawtooth", 0.09, 130);
-        setTimeout(function () { beep(140, 0.22, "sawtooth", 0.09, 65); }, 120);
-      }
-
-      var mode = "idle";
-      var score = 0;
-      var level = 1;
-      var eatenInLevel = 0;
-      var bannerTicks = 0;
-
-      var snakes = [];
-      var intruders = [];
-      var fireballs = [];
-      var fruit = { x: 6, y: 8 };
-      var moveTick = 0;
-      var fireTick = 0;
-
-      function initSnakes() {
-        snakes = [
-          {
-            dir: { x: 1, y: 0 },
-            body: [{ x: 4, y: 10 }, { x: 3, y: 10 }, { x: 2, y: 10 }],
-            color: "#22c55e"
-          }
-        ];
-      }
-
-      function initIntruders() {
-        intruders = [
-          {
-            id: 1,
-            dir: { x: 1, y: 0 },
-            body: [{ x: 2, y: 3 }, { x: 1, y: 3 }, { x: 0, y: 3 }],
-            color: "#ef4444",
-            cooldown: 16
-          },
-          {
-            id: 2,
-            dir: { x: -1, y: 0 },
-            body: [{ x: COLS - 3, y: ROWS - 4 }, { x: COLS - 2, y: ROWS - 4 }, { x: COLS - 1, y: ROWS - 4 }],
-            color: "#f97316",
-            cooldown: 28
-          }
-        ];
-      }
-
-      function placeFruit() {
-        for (var tries = 0; tries < 80; tries++) {
-          var fx = Math.floor(Math.random() * COLS);
+  top: 68px;
+  left: 16px;
+  right: 16px;
