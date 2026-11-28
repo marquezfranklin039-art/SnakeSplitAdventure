@@ -2,103 +2,390 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Snake Split - 2 Intrusas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Snake Split</title>
 <style>
-* {
-  box-sizing: border-box;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-  touch-action: manipulation;
-}
 body {
+  margin: 0;
+  padding: 6px;
   background-color: #090d16;
   color: #f8fafc;
-  font-family: Arial, Helvetica, sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 6px;
+  font-family: Arial, sans-serif;
+  text-align: center;
 }
-.hud {
-  width: 100%;
-  max-width: 380px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: bold;
-}
-.tag {
-  background-color: #111827;
-  color: #4ade80;
-  border: 2px solid #22c55e;
-  border-radius: 8px;
-  padding: 5px 7px;
-  white-space: nowrap;
-}
-.tag.gold {
-  color: #facc15;
-  border-color: #eab308;
-}
-.tag.fire {
-  color: #fb923c;
-  border-color: #f97316;
-}
-.hud-btn {
-  background-color: #1e293b;
-  color: #ffffff;
-  border: 2px solid #38bdf8;
-  border-radius: 8px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: bold;
-  cursor: pointer;
-}
-#arena-box {
-  position: relative;
-  width: 92vw;
+.top {
   max-width: 360px;
-  height: 440px;
-  max-height: calc(100vh - 156px);
-  border: 3px solid #22c55e;
-  border-radius: 12px;
+  margin: 0 auto 6px auto;
+  font-size: 12px;
+  font-weight: bold;
+}
+.pill {
+  display: inline-block;
+  background-color: #111827;
+  border: 2px solid #22c55e;
+  border-radius: 6px;
+  padding: 4px 7px;
+  margin: 2px;
+}
+#box {
+  position: relative;
+  width: 300px;
+  height: 400px;
+  margin: 0 auto 8px auto;
   background-color: #050811;
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+  border: 3px solid #22c55e;
+  border-radius: 10px;
 }
 #cv {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 300px;
+  height: 400px;
 }
-#banner-lvl {
-  display: none;
+#card {
   position: absolute;
-  top: 8px;
-  left: 10px;
-  right: 10px;
-  background-color: #eab308;
-  color: #090d16;
-  font-size: 12px;
-  font-weight: bold;
-  text-align: center;
-  padding: 5px;
-  border-radius: 8px;
-  z-index: 5;
-}
-#modal {
-  position: absolute;
-  top: 68px;
+  top: 70px;
   left: 16px;
   right: 16px;
+  background-color: #111827;
+  border: 2px solid #f97316;
+  border-radius: 10px;
+  padding: 12px;
+}
+#go {
+  background-color: #22c55e;
+  color: #050811;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 8px;
+}
+.pad {
+  max-width: 320px;
+  margin: 0 auto;
+}
+.pad button {
+  width: 96px;
+  padding: 10px 4px;
+  margin: 2px;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: 2px solid #38bdf8;
+  background-color: #1e293b;
+  color: #ffffff;
+}
+</style>
+</head>
+<body>
+  <div class="top">
+    <span class="pill" id="pts">0 pts</span>
+    <span class="pill" id="lvl">Nv 1</span>
+    <span class="pill" style="border-color:#f97316;color:#fb923c;">2 Intrusas</span>
+    <button type="button" class="pill" style="background:#1e293b;color:#fff;" id="snd">Audio: Si</button>
+    <button type="button" class="pill" style="background:#1e293b;color:#fff;" id="pau">Pausa</button>
+  </div>
+
+  <div id="box">
+    <canvas id="cv" width="300" height="400"></canvas>
+    <div id="card">
+      <div id="ctitle" style="font-size:18px;font-weight:bold;color:#fb923c;">SNAKE SPLIT</div>
+      <div id="cdesc" style="font-size:12px;margin-top:5px;">Come frutas y divide tu serpiente. Esquiva las 2 intrusas y sus bolas de fuego.</div>
+      <button type="button" id="go">JUGAR</button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <div>
+      <button type="button" id="b-start" style="background:#f97316;color:#050811;border-color:#fde047;">Jugar</button>
+      <button type="button" id="b-up">Arriba</button>
+      <button type="button" id="b-down">Abajo</button>
+    </div>
+    <div>
+      <button type="button" id="b-left">Izq</button>
+      <button type="button" id="b-right">Der</button>
+      <button type="button" id="b-pause">Pausa</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var COLS = 15, ROWS = 20, S = 20;
+    var cv = document.getElementById("cv");
+    var ctx = cv.getContext("2d");
+    var card = document.getElementById("card");
+    var ctitle = document.getElementById("ctitle");
+    var cdesc = document.getElementById("cdesc");
+    var goBtn = document.getElementById("go");
+    var ptsEl = document.getElementById("pts");
+    var lvlEl = document.getElementById("lvl");
+    var sndBtn = document.getElementById("snd");
+    var pauBtn = document.getElementById("pau");
+
+    var soundOn = true, actx = null;
+    function getAc() {
+      if (!soundOn) return null;
+      try {
+        var C = window.AudioContext || window.webkitAudioContext;
+        if (!C) return null;
+        if (!actx) actx = new C();
+        if (actx.state === "suspended" && actx.resume) actx.resume();
+        return actx;
+      } catch (e) { return null; }
+    }
+    function tone(f, d, t, v, f2) {
+      var a = getAc();
+      if (!a) return;
+      try {
+        var now = a.currentTime;
+        var o = a.createOscillator();
+        var g = a.createGain();
+        o.type = t || "square";
+        o.frequency.setValueAtTime(f, now);
+        if (f2 && o.frequency.exponentialRampToValueAtTime) {
+          o.frequency.exponentialRampToValueAtTime(Math.max(25, f2), now + d);
+        }
+        g.gain.setValueAtTime(v || 0.07, now);
+        if (g.gain.exponentialRampToValueAtTime) {
+          g.gain.exponentialRampToValueAtTime(0.001, now + d);
+        }
+        o.connect(g); g.connect(a.destination);
+        o.start(now); o.stop(now + d + 0.02);
+      } catch (e) {}
+    }
+
+    var state = "idle", score = 0, lvl = 1, eaten = 0;
+    var snakes = [], intruders = [], balls = [], fruit = { x: 7, y: 9 };
+    var tickMove = 0, tickFire = 0;
+
+    function resetEntities() {
+      snakes = [{ dir: { x: 1, y: 0 }, body: [{ x: 4, y: 11 }, { x: 3, y: 11 }, { x: 2, y: 11 }], col: "#22c55e" }];
+      intruders = [
+        { dir: { x: 1, y: 0 }, body: [{ x: 2, y: 3 }, { x: 1, y: 3 }, { x: 0, y: 3 }], col: "#ef4444", cd: 14 },
+        { dir: { x: -1, y: 0 }, body: [{ x: COLS - 3, y: ROWS - 4 }, { x: COLS - 2, y: ROWS - 4 }, { x: COLS - 1, y: ROWS - 4 }], col: "#f97316", cd: 24 }
+      ];
+      balls = [];
+      fruit = { x: 8, y: 9 };
+    }
+
+    function die(msg) {
+      state = "over";
+      tone(220, 0.14, "sawtooth", 0.09, 120);
+      setTimeout(function () { tone(130, 0.22, "sawtooth", 0.09, 60); }, 120);
+      ctitle.textContent = "FIN DEL JUEGO";
+      cdesc.textContent = msg + " Puntaje: " + score + " pts";
+      goBtn.textContent = "REINTENTAR";
+      card.style.display = "block";
+    }
+
+    function startGame() {
+      getAc();
+      score = 0; lvl = 1; eaten = 0; tickMove = 0; tickFire = 0;
+      ptsEl.textContent = "0 pts";
+      lvlEl.textContent = "Nv 1";
+      pauBtn.textContent = "Pausa";
+      resetEntities();
+      card.style.display = "none";
+      state = "play";
+      tone(440, 0.09, "square", 0.07, 740);
+      draw();
+    }
+
+    function togglePause() {
+      if (state === "play") {
+        state = "pause";
+        ctitle.textContent = "PAUSA";
+        cdesc.textContent = "Juego en pausa.";
+        goBtn.textContent = "CONTINUAR";
+        card.style.display = "block";
+        pauBtn.textContent = "Seguir";
+      } else if (state === "pause") {
+        state = "play";
+        card.style.display = "none";
+        pauBtn.textContent = "Pausa";
+      }
+    }
+
+    function moveFruit() {
+      for (var t = 0; t < 60; t++) {
+        var fx = Math.floor(Math.random() * COLS);
+        var fy = Math.floor(Math.random() * ROWS);
+        var hit = false;
+        for (var i = 0; i < snakes.length; i++) {
+          for (var b = 0; b < snakes[i].body.length; b++) {
+            if (snakes[i].body[b].x === fx && snakes[i].body[b].y === fy) hit = true;
+          }
+        }
+        for (var j = 0; j < intruders.length; j++) {
+          for (var ib = 0; ib < intruders[j].body.length; ib++) {
+            if (intruders[j].body[ib].x === fx && intruders[j].body[ib].y === fy) hit = true;
+          }
+        }
+        if (!hit) { fruit = { x: fx, y: fy }; return; }
+      }
+    }
+
+    function stepPlayer() {
+      for (var i = 0; i < snakes.length; i++) {
+        var s = snakes[i];
+        var h = s.body[0];
+        var nx = h.x + s.dir.x, ny = h.y + s.dir.y;
+        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) { die("Chocaste con el borde."); return; }
+        for (var b = 0; b < s.body.length; b++) {
+          if (s.body[b].x === nx && s.body[b].y === ny) { die("Chocaste contigo mismo."); return; }
+        }
+        for (var j = 0; j < intruders.length; j++) {
+          for (var ib = 0; ib < intruders[j].body.length; ib++) {
+            if (intruders[j].body[ib].x === nx && intruders[j].body[ib].y === ny) { die("Chocaste con una intrusa."); return; }
+          }
+        }
+        s.body.unshift({ x: nx, y: ny });
+        if (nx === fruit.x && ny === fruit.y) {
+          score += 50; eaten++;
+          ptsEl.textContent = score + " pts";
+          tone(520, 0.08, "square", 0.07, 880);
+          if (eaten === 2 && snakes.length < 2 && s.body.length >= 3) {
+            var tail = s.body.pop();
+            snakes.push({ dir: { x: -s.dir.x, y: -s.dir.y || 1 }, body: [{ x: tail.x, y: tail.y }], col: "#38bdf8" });
+            tone(380, 0.1, "triangle", 0.08, 760);
+          }
+          if (eaten >= 5) {
+            eaten = 0; lvl++;
+            lvlEl.textContent = "Nv " + lvl;
+            tone(660, 0.1, "square", 0.08, 1046);
+          }
+          moveFruit();
+        } else {
+          s.body.pop();
+        }
+      }
+    }
+
+    function stepIntruders() {
+      var dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+      for (var i = 0; i < intruders.length; i++) {
+        var intr = intruders[i];
+        var h = intr.body[0];
+        var opts = [];
+        for (var d = 0; d < dirs.length; d++) {
+          var tx = h.x + dirs[d].x, ty = h.y + dirs[d].y;
+          if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && !(dirs[d].x === -intr.dir.x && dirs[d].y === -intr.dir.y)) {
+            opts.push(dirs[d]);
+          }
+        }
+        if (opts.length && Math.random() < 0.45) intr.dir = opts[Math.floor(Math.random() * opts.length)];
+        var nx = h.x + intr.dir.x, ny = h.y + intr.dir.y;
+        if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
+          intr.dir = { x: -intr.dir.x, y: -intr.dir.y };
+          nx = Math.min(COLS - 1, Math.max(0, h.x + intr.dir.x));
+          ny = Math.min(ROWS - 1, Math.max(0, h.y + intr.dir.y));
+        }
+        intr.body.unshift({ x: nx, y: ny });
+        intr.body.pop();
+        for (var s = 0; s < snakes.length; s++) {
+          for (var sb = 0; sb < snakes[s].body.length; sb++) {
+            if (snakes[s].body[sb].x === nx && snakes[s].body[sb].y === ny) { die("Te atrapo una intrusa."); return; }
+          }
+        }
+        intr.cd--;
+        if (intr.cd <= 0) {
+          intr.cd = Math.max(12, 22 - lvl * 2);
+          var target = snakes[0] ? snakes[0].body[0] : { x: 7, y: 9 };
+          var dx = target.x - nx, dy = target.y - ny;
+          var vx = 0, vy = 0;
+          if (Math.abs(dx) >= Math.abs(dy)) vx = dx >= 0 ? 1 : -1;
+          else vy = dy >= 0 ? 1 : -1;
+          balls.push({ x: nx + vx, y: ny + vy, vx: vx, vy: vy });
+          tone(250, 0.07, "sawtooth", 0.06, 110);
+        }
+      }
+    }
+
+    function stepBalls() {
+      var next = [];
+      for (var i = 0; i < balls.length; i++) {
+        var fb = balls[i];
+        fb.x += fb.vx; fb.y += fb.vy;
+        if (fb.x < 0 || fb.x >= COLS || fb.y < 0 || fb.y >= ROWS) continue;
+        for (var s = 0; s < snakes.length; s++) {
+          for (var sb = 0; sb < snakes[s].body.length; sb++) {
+            if (snakes[s].body[sb].x === fb.x && snakes[s].body[sb].y === fb.y) { die("Te dio una bola de fuego."); return; }
+          }
+        }
+        next.push(fb);
+      }
+      balls = next;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.strokeStyle = "rgba(148,163,184,0.14)";
+      for (var c = 1; c < COLS; c++) { ctx.beginPath(); ctx.moveTo(c * S, 0); ctx.lineTo(c * S, cv.height); ctx.stroke(); }
+      for (var r = 1; r < ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r * S); ctx.lineTo(cv.width, r * S); ctx.stroke(); }
+
+      ctx.fillStyle = "#facc15";
+      ctx.beginPath(); ctx.arc(fruit.x * S + S / 2, fruit.y * S + S / 2, S * 0.38, 0, Math.PI * 2); ctx.fill();
+
+      for (var i = 0; i < snakes.length; i++) {
+        for (var b = 0; b < snakes[i].body.length; b++) {
+          ctx.fillStyle = b === 0 ? "#bbf7d0" : snakes[i].col;
+          ctx.fillRect(snakes[i].body[b].x * S + 1, snakes[i].body[b].y * S + 1, S - 2, S - 2);
+        }
+      }
+      for (var j = 0; j < intruders.length; j++) {
+        for (var ib = 0; ib < intruders[j].body.length; ib++) {
+          ctx.fillStyle = ib === 0 ? "#fde047" : intruders[j].col;
+          ctx.fillRect(intruders[j].body[ib].x * S + 1, intruders[j].body[ib].y * S + 1, S - 2, S - 2);
+        }
+      }
+      for (var f = 0; f < balls.length; f++) {
+        ctx.fillStyle = "#ff5722";
+        ctx.beginPath(); ctx.arc(balls[f].x * S + S / 2, balls[f].y * S + S / 2, S * 0.35, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    function dir(dx, dy) {
+      getAc();
+      if (state !== "play") return;
+      for (var i = 0; i < snakes.length; i++) {
+        if (snakes[i].dir.x === -dx && snakes[i].dir.y === -dy) continue;
+        snakes[i].dir = { x: dx, y: dy };
+      }
+    }
+
+    goBtn.addEventListener("click", function () { if (state === "pause") togglePause(); else startGame(); });
+    document.getElementById("b-start").addEventListener("click", startGame);
+    pauBtn.addEventListener("click", togglePause);
+    document.getElementById("b-pause").addEventListener("click", togglePause);
+    sndBtn.addEventListener("click", function () {
+      soundOn = !soundOn;
+      sndBtn.textContent = "Audio: " + (soundOn ? "Si" : "No");
+      if (soundOn) { getAc(); tone(500, 0.06, "square", 0.06, 750); }
+    });
+    document.getElementById("b-up").addEventListener("click", function () { dir(0, -1); });
+    document.getElementById("b-down").addEventListener("click", function () { dir(0, 1); });
+    document.getElementById("b-left").addEventListener("click", function () { dir(-1, 0); });
+    document.getElementById("b-right").addEventListener("click", function () { dir(1, 0); });
+
+    resetEntities();
+    draw();
+
+    setInterval(function () {
+      if (state !== "play") { draw(); return; }
+      tickMove++; tickFire++;
+      var rate = Math.max(2, 4 - Math.floor(lvl / 3));
+      if (tickMove >= rate) {
+        tickMove = 0;
+        stepPlayer();
+        if (state !== "play") { draw(); return; }
+        stepIntruders();
+        if (state !== "play") { draw(); return; }
+      }
+      if (tickFire >= 2) { tickFire = 0; stepBalls(); }
+      draw();
+    }, 65);
+  })();
+  </script>
+</body>
+</html>
